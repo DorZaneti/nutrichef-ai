@@ -1,199 +1,224 @@
-# 🍳 NutriChef AI - Your Personal Recipe & Nutrition Assistant
+# 🍳 NutriChef AI — Your Personal Recipe & Nutrition Assistant
 
-An intelligent AI-powered web application that helps you discover recipes based on your available ingredients and provides detailed nutritional information. Built with React, FastAPI, powered by **Groq AI** (FREE!) and **Spoonacular API** (real recipes!).
+An intelligent AI-powered web application that helps you discover recipes based on your available ingredients and provides detailed nutritional information. Built with **React + Vite**, **FastAPI**, powered by **Claude AI** (Anthropic) and **TheMealDB** (free, no API key required).
 
-![NutriChef AI](https://img.shields.io/badge/Status-Active-success)
+![Status](https://img.shields.io/badge/Status-Active-success)
 ![React](https://img.shields.io/badge/React-18.2.0-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-green)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue)
-![Groq](https://img.shields.io/badge/AI-Groq-orange)
+![Claude](https://img.shields.io/badge/AI-Claude%20(Anthropic)-blueviolet)
+
+---
 
 ## ✨ Features
 
-- 🤖 **AI-Powered Conversations**: Chat naturally with Groq AI (Llama 3.3) about your ingredients
-- 🔍 **Real Recipe Search**: Access thousands of real recipes from Spoonacular
-- 📊 **Detailed Nutrition**: Get accurate calorie, protein, carbs, and fat information
-- 🖼️ **Recipe Images**: See beautiful photos of each dish
-- 📝 **Step-by-Step Instructions**: Complete cooking instructions for every recipe
-- 💬 **Conversational Interface**: Natural language processing for easy ingredient input
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
-- ⚡ **Fast & Free**: Groq's LLM is incredibly fast and has a generous free tier
+- 🤖 **AI-Powered Chat** — Natural conversation with Claude (`claude-sonnet-4-6`) about your ingredients
+- 🧠 **Smart Ingredient Extraction** — Claude (`claude-haiku-4-5`) automatically parses names and weights from plain text
+- 🔍 **Real Recipe Search** — Thousands of recipes sourced from TheMealDB (100% free)
+- 📊 **Nutrition Estimates** — AI-generated calorie, protein, carbs & fat breakdown per recipe
+- 🖼️ **Recipe Images** — Beautiful dish photos from TheMealDB
+- 📝 **Step-by-Step Instructions** — Full cooking instructions for every recipe
+- 🌐 **Auto-opens Browser** — Starting the backend automatically opens `http://localhost:3000`
+- 📱 **Responsive Design** — Works on desktop and mobile
 
-## 🎯 Why This Stack?
-
-**Groq AI (FREE!):**
-- ✅ Lightning-fast responses (<1 second)
-- ✅ Generous free tier (no credit card required)
-- ✅ Llama 3.3 70B - powerful and conversational
-- ✅ Easy to use API
-
-**Spoonacular API (Real Recipes!):**
-- ✅ 5000+ recipes with full instructions
-- ✅ Accurate nutritional data
-- ✅ Beautiful recipe images
-- ✅ 150 free API calls/day
-- ✅ Real, tested recipes from the web
-
-## 🎯 Use Cases
-
-- **Meal Planning**: Discover what you can cook with ingredients you already have
-- **Calorie Tracking**: Monitor your nutritional intake accurately
-- **Reduce Food Waste**: Use up ingredients before they expire
-- **Cooking Inspiration**: Get creative recipe ideas from your pantry
-- **Dietary Goals**: Make informed decisions based on nutritional data
+---
 
 ## 🏗️ Tech Stack
 
 ### Frontend
-- **React 18** - Modern UI library
-- **Vite** - Fast build tool and dev server
-- **Axios** - HTTP client for API calls
-- **CSS3** - Custom styling with gradients and animations
+| Tech | Version | Role |
+|------|---------|------|
+| React | 18.2.0 | UI library |
+| Vite | 5.x | Dev server & bundler |
+| Axios | 1.6.x | HTTP client |
 
 ### Backend
-- **FastAPI** - High-performance Python web framework
-- **Groq AI (Llama 3.3)** - FREE lightning-fast LLM
-- **Spoonacular API** - Real recipe and nutrition database
-- **Pydantic** - Data validation
-- **Uvicorn** - ASGI server
+| Tech | Version | Role |
+|------|---------|------|
+| FastAPI | 0.109.0 | REST API framework |
+| Uvicorn | 0.27.0 | ASGI server |
+| Anthropic SDK | ≥0.40.0 | Claude AI integration |
+| httpx | 0.27.0 | Async HTTP client (TheMealDB) |
+| Pydantic | 2.5.3 | Data validation |
 
-### APIs
-- **Groq** - Free AI conversations (Llama 3.3 70B)
-- **Spoonacular** - 5000+ recipes with nutrition (150 free calls/day)
+### AI Models (Claude)
+| Model | Used for |
+|-------|---------|
+| `claude-sonnet-4-6` | Conversational chat agent |
+| `claude-haiku-4-5` | Ingredient extraction & nutrition estimation (fast, structured JSON output) |
+
+### External APIs
+| API | Cost | Key required |
+|-----|------|-------------|
+| [Anthropic Claude](https://console.anthropic.com) | Pay-per-token | ✅ Yes |
+| [TheMealDB](https://www.themealdb.com/api.php) | Free | ❌ No |
+
+---
 
 ## 📋 Prerequisites
 
-- Python 3.8 or higher
-- Node.js 16 or higher
-- npm or yarn
-- **FREE Groq API key** ([Get one here](https://console.groq.com/keys)) - No credit card required!
-- **FREE Spoonacular API key** ([Get one here](https://spoonacular.com/food-api)) - 150 calls/day free
+- Python 3.8+
+- Node.js 16+
+- npm
+- **Anthropic API key** — [Get one at console.anthropic.com](https://console.anthropic.com/keys)
+
+---
 
 ## 🚀 Getting Started
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/yourusername/nutrichef-ai.git
 cd nutrichef-ai
 ```
 
-### 2. Backend Setup
+### 2. Backend setup
 
 ```bash
 cd backend
 
-# Create virtual environment (optional but recommended)
+# (Optional) create a virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate      # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file
+# Configure environment variables
 cp .env.example .env
-
-# Add your API keys to .env:
-# GROQ_API_KEY=your_groq_key_here
-# SPOONACULAR_API_KEY=your_spoonacular_key_here
 ```
 
-**Getting Your FREE API Keys:**
+Edit `backend/.env` and add your key:
 
-1. **Groq API Key** (No credit card needed!):
-   - Go to https://console.groq.com/keys
-   - Sign up with Google/GitHub
-   - Create a new API key
-   - Copy and paste into `.env`
+```env
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
 
-2. **Spoonacular API Key** (150 free calls/day):
-   - Go to https://spoonacular.com/food-api
-   - Sign up for free account
-   - Get your API key from dashboard
-   - Copy and paste into `.env`
-
-### 3. Frontend Setup
+### 3. Frontend setup
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
 ```
 
-### 4. Running the Application
+### 4. Run the app
 
-**Terminal 1 - Backend:**
-```bash
-cd backend
-python main.py
-# Backend runs on http://localhost:8000
-```
-
-**Terminal 2 - Frontend:**
+**Terminal 1 — Frontend:**
 ```bash
 cd frontend
 npm run dev
-# Frontend runs on http://localhost:3000
+# Vite starts on http://localhost:3000
 ```
 
-### 5. Open Your Browser
+**Terminal 2 — Backend:**
+```bash
+cd backend
+python main.py
+# FastAPI starts on http://localhost:8000
+# Browser opens http://localhost:3000 automatically ✨
+```
 
-Navigate to `http://localhost:3000` and start using NutriChef AI!
+---
 
 ## 📖 How to Use
 
-1. **Start a Conversation**: Tell the AI what ingredients you have
-   - Example: "I have chicken breast 300g, rice 200g, and broccoli 150g"
+1. **Chat with the AI** — Type what ingredients you have in the chat panel
+   > *"I have 300g chicken breast, 2 eggs, and some garlic"*
 
-2. **View Your Ingredients**: Check the ingredient panel on the right to see what's been added
+2. **Review your ingredients** — The right panel shows parsed ingredients with weights
 
-3. **Get Recipe Suggestions**: Click "Find Recipes" to see what you can make
+3. **Find recipes** — Click **Find Recipes** to search TheMealDB with your ingredients
 
-4. **Explore Recipes**: View nutritional information, ingredients needed, and step-by-step instructions
+4. **Explore results** — Each card shows match %, nutrition breakdown, and full instructions
 
-5. **Cook and Enjoy**: Follow the instructions to prepare your meal!
+5. **Cook and enjoy!**
 
-## 🎨 Features Showcase
+---
 
-### Intelligent Ingredient Parsing
-The AI automatically extracts ingredient names and weights from natural language:
+## 🔌 API Endpoints
+
+### `POST /api/chat`
+Send a message and receive a Claude response + extracted ingredients.
+
+```json
+// Request
+{
+  "message": "I have 300g chicken and 2 eggs",
+  "conversation_history": [],
+  "current_ingredients": []
+}
+
+// Response
+{
+  "response": "Great! Chicken and eggs are a fantastic combo...",
+  "conversation_history": [...],
+  "extracted_ingredients": [
+    { "name": "chicken", "weight_grams": 300 },
+    { "name": "egg", "weight_grams": 100 }
+  ]
+}
 ```
-User: "I have 300g chicken and 200 grams of rice"
-AI: ✓ Added chicken (300g) and rice (200g)
+
+### `POST /api/recipes`
+Search for recipes by ingredient names.
+
+```json
+// Request
+{ "ingredients": ["chicken", "egg", "garlic"] }
+
+// Response
+{
+  "recipes": [
+    {
+      "id": "52772",
+      "name": "Teriyaki Chicken Casserole",
+      "image": "https://...",
+      "match_percentage": 66.7,
+      "used_ingredients": ["chicken"],
+      "missed_ingredients": ["soy sauce", "...]
+    }
+  ],
+  "count": 8
+}
 ```
 
-### Detailed Nutritional Breakdown
-Every recipe shows:
-- Total calories
-- Protein content
-- Carbohydrates
-- Fat content
-- Per-serving calculations
+### `GET /api/recipe/{id}`
+Full recipe details including instructions and AI-estimated nutrition.
 
-### Recipe Matching Algorithm
-- Matches recipes based on available ingredients
-- Shows match percentage
-- Highlights missing ingredients
-- Suggests substitutions
+```json
+{
+  "id": "52772",
+  "name": "Teriyaki Chicken Casserole",
+  "servings": 4,
+  "nutrition": { "calories": 520, "protein": 38, "carbs": 45, "fat": 18 },
+  "instructions": ["Preheat oven to 350°F...", "..."],
+  "ingredients": ["3 cups rice", "1 kg chicken breast", "..."]
+}
+```
+
+### `GET /api/health`
+```json
+{ "status": "healthy", "anthropic_configured": true }
+```
+
+---
 
 ## 🗂️ Project Structure
 
 ```
 nutrichef-ai/
 ├── backend/
-│   ├── main.py              # FastAPI application
-│   ├── nutrition_db.py      # Nutrition database
-│   ├── recipe_db.py         # Recipe database
+│   ├── main.py              # FastAPI app — all routes and Claude integration
 │   ├── requirements.txt     # Python dependencies
-│   └── .env.example         # Environment variables template
+│   ├── .env                 # Your API keys (git-ignored)
+│   └── .env.example         # Template
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── ChatInterface.jsx
 │   │   │   ├── IngredientList.jsx
-│   │   │   ├── RecipeCard.jsx
-│   │   │   └── *.css
+│   │   │   └── RecipeCard.jsx
 │   │   ├── App.jsx
 │   │   ├── App.css
 │   │   └── main.jsx
@@ -203,97 +228,49 @@ nutrichef-ai/
 └── README.md
 ```
 
-## 🔌 API Endpoints
-
-### Chat Endpoint
-```http
-POST /api/chat
-Content-Type: application/json
-
-{
-  "message": "I have chicken 300g",
-  "conversation_history": [],
-  "current_ingredients": []
-}
-```
-
-### Recipe Suggestions
-```http
-POST /api/recipes
-Content-Type: application/json
-
-{
-  "ingredients": [
-    {"name": "chicken breast", "weight_grams": 300},
-    {"name": "rice", "weight_grams": 200}
-  ]
-}
-```
-
-### Nutrition Info
-```http
-GET /api/nutrition/{ingredient}?weight=100
-```
-
-### List Ingredients
-```http
-GET /api/ingredients
-```
-
-## 🧪 Example Recipes
-
-The app includes 10+ pre-programmed recipes:
-- Classic Grilled Chicken with Rice
-- Beef Stir-Fry with Vegetables
-- Salmon with Roasted Vegetables
-- Veggie Pasta Primavera
-- Egg Fried Rice
-- And more!
+---
 
 ## 🔮 Future Enhancements
 
-- [ ] User authentication and profiles
-- [ ] Save favorite recipes
+- [ ] User authentication & saved recipes
+- [ ] Dietary filters (vegan, gluten-free, etc.)
 - [ ] Shopping list generation
-- [ ] Dietary restrictions filtering (vegan, gluten-free, etc.)
-- [ ] Integration with external nutrition APIs
 - [ ] Meal planning calendar
-- [ ] Recipe rating and reviews
 - [ ] Image upload for ingredient recognition
 - [ ] Voice input support
 - [ ] Multi-language support
 
+---
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch — `git checkout -b feature/my-feature`
+3. Commit your changes — `git commit -m 'Add my feature'`
+4. Push to the branch — `git push origin feature/my-feature`
 5. Open a Pull Request
+
+---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
 
 ## 👤 Author
 
 **Dor**
 - GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-
-## 🙏 Acknowledgments
-
-- Anthropic for Claude AI API
-- USDA for nutritional data
-- React and FastAPI communities
-- All contributors and users
-
-## 📞 Support
-
-If you have any questions or run into issues, please open an issue on GitHub.
 
 ---
 
-**Made with ❤️ and AI**
+## 🙏 Acknowledgments
+
+- [Anthropic](https://anthropic.com) for the Claude API
+- [TheMealDB](https://www.themealdb.com) for the free recipe database
+- React and FastAPI communities
+
+---
+
+*Made with ❤️ and Claude AI*
