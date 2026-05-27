@@ -16,8 +16,8 @@ Complete guide for running the project in PyCharm IDE.
 
 ### Step 1: Extract the Project
 
-1. Unzip `nutrichef-ai-v2.zip` to your desired location
-2. Remember the folder path (e.g., `C:\Users\YourName\nutrichef-ai-v2`)
+1. Unzip `nutrichef-ai.zip` to your desired location
+2. Remember the folder path (e.g., `C:\Users\YourName\nutrichef-ai`)
 
 ---
 
@@ -25,7 +25,7 @@ Complete guide for running the project in PyCharm IDE.
 
 1. Open PyCharm
 2. Click **File** → **Open**
-3. Navigate to `nutrichef-ai-v2` folder
+3. Navigate to the `nutrichef-ai` folder
 4. Click **OK**
 5. If asked "Trust and Open Project?", click **Trust Project**
 
@@ -40,7 +40,7 @@ Complete guide for running the project in PyCharm IDE.
 
 #### Option B: Manual Setup
 1. Click **File** → **Settings** (Windows/Linux) or **PyCharm** → **Preferences** (Mac)
-2. Go to **Project: nutrichef-ai-v2** → **Python Interpreter**
+2. Go to **Project: nutrichef-ai** → **Python Interpreter**
 3. Click the gear icon ⚙️ → **Add**
 4. Select **Virtualenv Environment** → **New Environment**
 5. Click **OK**
@@ -52,45 +52,35 @@ Complete guide for running the project in PyCharm IDE.
 
 ---
 
-### Step 4: Get Your FREE API Keys
+### Step 4: Get Your Anthropic API Key
 
-#### Groq API Key (2 minutes)
-1. Open browser: https://console.groq.com/keys
-2. Sign up with Google/GitHub
+1. Open browser: https://console.anthropic.com/keys
+2. Sign up or log in
 3. Click **"Create API Key"**
-4. Copy the key (starts with `gsk_`)
+4. Copy the key (starts with `sk-ant-`)
 
-#### Spoonacular API Key (3 minutes)
-1. Open browser: https://spoonacular.com/food-api
-2. Click **"Get Access"** → **"Start Now"**
-3. Sign up for free account
-4. Go to **"My Console"** → **"Profile"**
-5. Copy your API key
+> **Recipes** come from [TheMealDB](https://www.themealdb.com) — free, no key needed!
 
 ---
 
 ### Step 5: Configure Environment Variables
 
 1. In PyCharm, open `backend/.env.example`
-2. Right-click on `backend` folder → **New** → **File**
+2. Right-click on the `backend` folder → **New** → **File**
 3. Name it `.env` (exactly, with the dot!)
 4. Copy this content:
 
 ```bash
-# Groq API Key (get from https://console.groq.com/keys)
-GROQ_API_KEY=paste_your_groq_key_here
-
-# Spoonacular API Key (get from https://spoonacular.com/food-api)
-SPOONACULAR_API_KEY=paste_your_spoonacular_key_here
+# Anthropic API Key (get from https://console.anthropic.com/keys)
+ANTHROPIC_API_KEY=paste_your_key_here
 ```
 
-5. Replace the placeholder values with your actual API keys
+5. Replace `paste_your_key_here` with your actual API key
 6. Save the file (Ctrl+S / Cmd+S)
 
-**⚠️ IMPORTANT:** Make sure your `.env` file looks like this:
+**⚠️ IMPORTANT:** The file should look like:
 ```
-GROQ_API_KEY=gsk_abc123xyz...
-SPOONACULAR_API_KEY=0d2171b60c9344...
+ANTHROPIC_API_KEY=sk-ant-abc123xyz...
 ```
 (No quotes, no extra spaces!)
 
@@ -131,6 +121,7 @@ INFO:     Started server process [12345]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000
+🌐 Opening http://localhost:3000 ...
 ```
 
 **Keep this running!** Don't close this terminal/run window.
@@ -161,7 +152,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 1. Open your system terminal (CMD, PowerShell, Terminal)
 2. Navigate to project:
    ```bash
-   cd path/to/nutrichef-ai-v2/frontend
+   cd path/to/nutrichef-ai/frontend
    ```
 3. Install and run:
    ```bash
@@ -201,19 +192,19 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
    You: What can I make with these ingredients?
    ```
 
-3. **Click "Find Recipes"** to see real recipes from Spoonacular
+3. **Click "Find Recipes"** to see real recipes from TheMealDB
 
 4. **Click "Show Details"** on any recipe to see:
    - Full ingredients list
    - Step-by-step instructions
-   - Nutritional information
+   - AI-estimated nutritional information
    - Recipe image
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Problem: "ModuleNotFoundError: No module named 'groq'"
+### Problem: "ModuleNotFoundError: No module named 'anthropic'"
 
 **Solution:**
 ```bash
@@ -224,12 +215,12 @@ pip install -r requirements.txt
 
 ---
 
-### Problem: "GROQ_API_KEY environment variable is not set"
+### Problem: "ANTHROPIC_API_KEY is not set"
 
 **Solution:**
-1. Check that you created `.env` file in `backend/` folder
+1. Check that you created the `.env` file in the `backend/` folder
 2. Make sure the file is named exactly `.env` (not `.env.txt`)
-3. Check that you pasted your actual API keys
+3. Check that your Anthropic API key is pasted correctly
 4. Restart the backend server
 
 ---
@@ -303,11 +294,11 @@ Just save your files and see changes instantly!
 ## 📁 Project Structure in PyCharm
 
 ```
-nutrichef-ai-v2/
+nutrichef-ai/
 ├── backend/              # 🐍 Python backend
 │   ├── main.py          # ← Run this file
 │   ├── requirements.txt
-│   ├── .env            # ← Create this with your API keys
+│   ├── .env            # ← Create this with your API key
 │   └── .env.example
 │
 ├── frontend/            # ⚛️ React frontend
@@ -318,10 +309,7 @@ nutrichef-ai-v2/
 │   ├── package.json
 │   └── vite.config.js
 │
-└── Documentation/       # 📚 All guides
-    ├── README.md
-    ├── QUICKSTART.md
-    └── NEW_FEATURES.md
+└── README.md            # Full documentation
 ```
 
 ---
@@ -333,7 +321,7 @@ Before you start coding:
 - [ ] PyCharm opened the project
 - [ ] Virtual environment created
 - [ ] Dependencies installed (`pip install -r requirements.txt`)
-- [ ] `.env` file created with BOTH API keys
+- [ ] `.env` file created with `ANTHROPIC_API_KEY`
 - [ ] Backend running (http://localhost:8000)
 - [ ] Frontend dependencies installed (`npm install`)
 - [ ] Frontend running (http://localhost:3000)
@@ -345,10 +333,10 @@ Before you start coding:
 
 ## 🎓 Next Steps
 
-1. **Test the application** - Try different ingredients
-2. **Read NEW_FEATURES.md** - Learn about Groq + Spoonacular
-3. **Customize it** - Change colors, add features
-4. **Deploy it** - See DEPLOYMENT.md
+1. **Test the application** — Try different ingredients
+2. **Read README.md** — Full documentation
+3. **Customize it** — Change colors, add features
+4. **Deploy it** — See DEPLOYMENT.md
 
 ---
 
@@ -378,7 +366,7 @@ pip install package-name
 ## 🆘 Still Having Issues?
 
 1. **Check PyCharm Terminal** for error messages
-2. **Verify API keys** are correct in `.env`
+2. **Verify your API key** is correct in `.env`
 3. **Restart PyCharm** (File → Invalidate Caches / Restart)
 4. **Check Python version**: Should be 3.8+
    ```bash
