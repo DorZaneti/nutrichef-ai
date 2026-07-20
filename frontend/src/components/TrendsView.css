@@ -1,0 +1,126 @@
+.trends-view {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.5rem 1rem;
+  box-shadow: var(--shadow-2);
+}
+
+.trends-view h2 {
+  font-size: 1.25rem;
+  color: var(--text-1);
+}
+
+.trends-hint {
+  color: var(--text-2);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-top: 0.5rem;
+}
+
+.trends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.range-toggle {
+  display: flex;
+  gap: 0.3rem;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+
+.range-chip {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--speed) var(--ease);
+}
+
+.range-chip.active {
+  background: var(--brand-gradient);
+  color: var(--text-on-primary);
+}
+
+.trends-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--speed) var(--ease);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color);
+  transition: background var(--speed) var(--ease);
+}
+
+.legend-chip.off {
+  color: var(--text-3);
+  opacity: 0.55;
+}
+
+.legend-chip.off .legend-dot {
+  background: var(--text-3);
+}
+
+.legend-chip:hover {
+  border-color: var(--chip-color);
+}
+
+.trends-tooltip {
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.8rem;
+  box-shadow: var(--shadow-2);
+  font-size: 0.8rem;
+}
+
+.trends-tooltip-date {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.trends-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .trends-view {
+    padding: 1.25rem 1rem 0.75rem;
+  }
+
+  .trends-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

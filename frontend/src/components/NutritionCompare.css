@@ -1,0 +1,98 @@
+.nutrition-compare {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-2);
+}
+
+.compare-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.compare-header h3 {
+  color: var(--text-1);
+  font-size: 1.15rem;
+}
+
+.metric-toggle {
+  display: flex;
+  gap: 0.35rem;
+  background: var(--surface-2);
+  padding: 0.25rem;
+  border-radius: 999px;
+}
+
+.metric-chip {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+
+.metric-chip:hover {
+  color: var(--text-1);
+}
+
+.metric-chip.active {
+  background: var(--brand-gradient);
+  color: var(--text-on-primary);
+}
+
+.compare-empty {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.compare-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) 1fr 70px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.compare-name {
+  font-size: 0.82rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-track {
+  background: var(--chart-track);
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.compare-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s var(--ease);
+}
+
+.compare-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-1);
+  text-align: right;
+  white-space: nowrap;
+}
+

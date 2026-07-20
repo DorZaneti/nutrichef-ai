@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import './IngredientList.css';
 
+const QUICK_ADD = [
+  { name: 'Chicken', grams: 300 },
+  { name: 'Rice', grams: 200 },
+  { name: 'Egg', grams: 100 },
+  { name: 'Tomato', grams: 120 },
+  { name: 'Onion', grams: 150 },
+  { name: 'Garlic', grams: 10 },
+  { name: 'Pasta', grams: 200 },
+  { name: 'Cheese', grams: 100 },
+];
+
 function IngredientList({ ingredients, removeIngredient, findRecipes, clearAll, addIngredient, isLoading }) {
   const [manualName, setManualName] = useState('');
   const [manualWeight, setManualWeight] = useState('');
@@ -13,6 +24,8 @@ function IngredientList({ ingredients, removeIngredient, findRecipes, clearAll, 
       setManualWeight('');
     }
   };
+
+  const have = new Set(ingredients.map((i) => i.name.toLowerCase()));
 
   return (
     <div className="ingredient-list">
@@ -46,17 +59,30 @@ function IngredientList({ ingredients, removeIngredient, findRecipes, clearAll, 
         </button>
       </form>
 
+      <div className="quick-add-row">
+        {QUICK_ADD.filter((q) => !have.has(q.name.toLowerCase())).map((q) => (
+          <button
+            key={q.name}
+            className="quick-add-chip"
+            onClick={() => addIngredient(q.name, q.grams)}
+            title={`Add ${q.name} (${q.grams}g)`}
+          >
+            + {q.name}
+          </button>
+        ))}
+      </div>
+
       {ingredients.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🥗</div>
           <p>No ingredients added yet</p>
-          <p className="hint">Use the chat or form above to add ingredients!</p>
+          <p className="hint">Use the chat, the chips above, or the form to add ingredients!</p>
         </div>
       ) : (
         <>
           <div className="ingredients-grid">
             {ingredients.map((ingredient, index) => (
-              <div key={index} className="ingredient-item">
+              <div key={`${ingredient.name}-${index}`} className="ingredient-item">
                 <div className="ingredient-info">
                   <span className="ingredient-name">{ingredient.name}</span>
                   <span className="ingredient-weight">{ingredient.weight_grams > 0 ? `${ingredient.weight_grams}g` : ''}</span>
@@ -65,6 +91,7 @@ function IngredientList({ ingredients, removeIngredient, findRecipes, clearAll, 
                   onClick={() => removeIngredient(index)}
                   className="remove-btn"
                   title="Remove ingredient"
+                  aria-label={`Remove ${ingredient.name}`}
                 >
                   ✕
                 </button>
@@ -86,7 +113,7 @@ function IngredientList({ ingredients, removeIngredient, findRecipes, clearAll, 
           </div>
 
           <button onClick={findRecipes} className="find-recipes-btn" disabled={isLoading}>
-            {isLoading ? '🔍 Finding Recipes...' : 'Find Recipes'}
+            {isLoading ? '🔍 Finding Recipes…' : 'Find Recipes'}
           </button>
         </>
       )}

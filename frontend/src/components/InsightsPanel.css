@@ -1,0 +1,99 @@
+.insights-panel {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-2);
+}
+
+.insights-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.insights-header h3 {
+  color: var(--text-1);
+  font-size: 1.15rem;
+}
+
+.insights-btn {
+  border: none;
+  background: var(--brand-gradient);
+  color: var(--text-on-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform var(--speed) var(--ease), opacity var(--speed) var(--ease);
+}
+
+.insights-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.insights-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.insights-hint {
+  color: var(--text-2);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.insights-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.insight-bullet {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  animation: insight-in 0.4s var(--ease);
+}
+
+.insight-icon {
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.insight-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+  margin-bottom: 0.2rem;
+}
+
+.insight-text {
+  font-size: 0.9rem;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+.insights-timestamp {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+@keyframes insight-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import { useEffect, useRef, useState } from 'react';
+import api from '../api/client';
+import { streamChat } from '../api/stream';
 import './ChatInterface.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function renderContent(text) {
   return text.split('\n').map((line, i, arr) => {
@@ -21,58 +20,83 @@ function renderContent(text) {
   });
 }
 
-function ChatInterface({ ingredients, conversationHistory, setConversationHistory, addIngredient }) {
+function ChatInterface({ ingredients, conversationHistory, setConversationHistory, onExtractedIngredients, online }) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [streamingReply, setStreamingReply] = useState(null);
   const chatEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
-  }, [conversationHistory]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversationHistory, isLoading, streamingReply]);
 
-  const sendMessage = async (e, overrideText) => {
-    if (e) e.preventDefault();
-    const userMessage = overrideText || message;
-    if (!userMessage.trim()) return;
-
-    setIsLoading(true);
-    setError('');
-    if (!overrideText) setMessage('');
-
+  const sendMessageFallback = async (userMessage, overrideText) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/chat`, {
+      const response = await api.post('/api/chat', {
         message: userMessage,
         conversation_history: conversationHistory,
-        current_ingredients: ingredients
+        current_ingredients: ingredients,
       });
 
       setConversationHistory(response.data.conversation_history);
-
-      const extracted = response.data.extracted_ingredients || [];
-      extracted.forEach(ing => {
-        if (ing.name && ing.weight_grams > 0) {
-          addIngredient(ing.name, ing.weight_grams);
-        }
-      });
+      onExtractedIngredients(response.data.extracted_ingredients || []);
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message. Please check if the backend is running.');
       if (!overrideText) setMessage(userMessage);
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  const sendMessage = async (e, overrideText) => {
+    if (e) e.preventDefault();
+    const userMessage = overrideText || message;
+    if (!userMessage.trim() || isLoading) return;
+
+    setIsLoading(true);
+    setError('');
+    if (!overrideText) setMessage('');
+    setStreamingReply('');
+
+    let gotDelta = false;
+
+    await streamChat({
+      message: userMessage,
+      conversationHistory,
+      currentIngredients: ingredients,
+      onDelta: (text) => {
+        gotDelta = true;
+        setStreamingReply((prev) => (prev ?? '') + text);
+      },
+      onIngredients: (extracted) => onExtractedIngredients(extracted),
+      onDone: (fullResponse) => {
+        setConversationHistory((prev) => [
+          ...prev,
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: fullResponse },
+        ]);
+        setStreamingReply(null);
+        setIsLoading(false);
+      },
+      onError: async (err) => {
+        console.error('Chat stream failed:', err);
+        setStreamingReply(null);
+        if (gotDelta) {
+          setError('Connection interrupted. Please try again.');
+          setIsLoading(false);
+        } else {
+          await sendMessageFallback(userMessage, overrideText);
+          setIsLoading(false);
+        }
+      },
+    });
+  };
+
   const quickActions = [
-    "I have chicken breast 300g and rice 200g",
-    "What can I make with these ingredients?",
-    "Give me a healthy recipe",
-    "I want something quick and easy"
+    'I have chicken breast 300g and rice 200g',
+    'What can I make with these ingredients?',
+    'Give me a healthy recipe',
+    'I want something quick and easy',
   ];
 
   return (
@@ -90,7 +114,7 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
             <p><strong>How to use:</strong></p>
             <ul>
               <li>Tell me what ingredients you have and their weights (in grams)</li>
-              <li>I'll help you track them and suggest recipes</li>
+              <li>I'll track them and find recipes automatically</li>
               <li>Get detailed nutritional information for your meals</li>
             </ul>
             <p className="example">Example: "I have chicken breast 300g, rice 200g, and broccoli 150g"</p>
@@ -102,7 +126,7 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
                   key={index}
                   className="quick-action-btn"
                   onClick={() => sendMessage(null, action)}
-                  disabled={isLoading}
+                  disabled={isLoading || !online}
                 >
                   {action}
                 </button>
@@ -129,13 +153,17 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
             <div className="message-header">
               <span className="message-role">🤖 NutriChef AI</span>
             </div>
-            <div className="message-content loading">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
+            {streamingReply ? (
+              <div className="message-content">{renderContent(streamingReply)}</div>
+            ) : (
+              <div className="message-content loading">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -149,12 +177,12 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message... (e.g., 'I have chicken 300g and rice 200g')"
-          disabled={isLoading}
+          placeholder={online ? "Type your message… (e.g., 'I have chicken 300g and rice 200g')" : 'Chat needs a connection — you are offline'}
+          disabled={isLoading || !online}
           className="chat-input"
         />
-        <button type="submit" disabled={isLoading || !message.trim()} className="send-button">
-          {isLoading ? 'Sending...' : 'Send'}
+        <button type="submit" disabled={isLoading || !online || !message.trim()} className="send-button">
+          {isLoading ? '…' : 'Send'}
         </button>
       </form>
     </div>

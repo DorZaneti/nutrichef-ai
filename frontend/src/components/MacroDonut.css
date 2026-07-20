@@ -1,0 +1,62 @@
+.macro-donut {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.macro-donut-svg {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.macro-donut-track {
+  stroke: var(--chart-track);
+}
+
+.macro-donut-arc {
+  transition: stroke-dasharray 0.6s var(--ease);
+}
+
+.macro-donut-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  fill: var(--text-1);
+}
+
+.macro-donut-unit {
+  font-size: 0.7rem;
+  fill: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.macro-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.macro-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.macro-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.macro-legend-label {
+  color: var(--text-2);
+  min-width: 3.5rem;
+}
+
+.macro-legend-value {
+  color: var(--text-1);
+  font-weight: 600;
+}
