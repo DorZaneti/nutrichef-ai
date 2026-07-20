@@ -2,9 +2,11 @@ import asyncio
 import os
 import webbrowser
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, ANTHROPIC_API_KEY
 from app.db import init_db
@@ -45,26 +47,19 @@ app.include_router(sync.router)
 app.include_router(trends.router)
 
 
-@app.get("/")
-def read_root():
-    return {
-        "message": "NutriChef AI API is running!",
-        "powered_by": "Claude + TheMealDB",
-        "endpoints": {
-            "chat": "/api/chat",
-            "recipes": "/api/recipes",
-            "recipe_details": "/api/recipe/{id}",
-            "insights": "/api/insights",
-        },
-    }
-
-
 @app.get("/api/health")
 def health_check():
     return {
         "status": "healthy",
         "anthropic_configured": bool(ANTHROPIC_API_KEY),
     }
+
+
+# Serve the built frontend from the same origin (single-service deploy).
+# Mounted last so /api/* routes win; html=True serves index.html at "/".
+_frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if _frontend_dist.is_dir():
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
 
 
 if __name__ == "__main__":

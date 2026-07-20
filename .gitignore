@@ -30,7 +30,6 @@ yarn.lock
 .DS_Store
 
 # Build outputs
-frontend/dist/
 frontend/build/
 *.log
 
@@ -49,3 +48,6 @@ coverage/
 # Local SQLite database
 *.db
 *.db-journal
+
+# Committed production build (served by the backend on Render)
+!frontend/dist/

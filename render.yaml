@@ -1,6 +1,6 @@
-# Render Blueprint — deploys the FastAPI backend and the static React frontend
-# together. In the Render dashboard: New > Blueprint > select this repo.
-# The only value you must supply by hand is ANTHROPIC_API_KEY.
+# Render Blueprint — single service: the FastAPI backend also serves the
+# committed frontend build (frontend/dist). The only value you must supply
+# by hand is ANTHROPIC_API_KEY.
 services:
   - type: web
     name: nutrichef-api
@@ -15,17 +15,3 @@ services:
         sync: false # set in the dashboard, never committed
       - key: PYTHON_VERSION
         value: "3.12.10" # pydantic 2.5.x has no prebuilt wheels for 3.13
-
-  - type: web
-    name: nutrichef
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://nutrichef-api-6610.onrender.com
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
