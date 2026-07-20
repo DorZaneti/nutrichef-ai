@@ -24,10 +24,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: nutrichef-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://nutrichef-api-6610.onrender.com
     routes:
       - type: rewrite
         source: /*
