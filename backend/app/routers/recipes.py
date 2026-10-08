@@ -1,14 +1,19 @@
 import asyncio
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.config import RECIPES_LIMIT_PER_IP
+from app.limits import per_ip_limit
 from app.schemas import BatchDetailsRequest, RecipeRequest
 from app.services.mealdb import get_recipe_details, search_recipes_by_ingredients
 
 router = APIRouter()
 
+# Searches translate names and details compute nutrition, both with Claude (cheap Haiku calls).
+RECIPE_LIMITS = [Depends(per_ip_limit("recipes", RECIPES_LIMIT_PER_IP))]
 
-@router.post("/api/recipes")
+
+@router.post("/api/recipes", dependencies=RECIPE_LIMITS)
 async def get_recipes(recipe_request: RecipeRequest):
     try:
         if not recipe_request.ingredients:
@@ -22,7 +27,7 @@ async def get_recipes(recipe_request: RecipeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/recipes/details")
+@router.post("/api/recipes/details", dependencies=RECIPE_LIMITS)
 async def get_recipes_details_batch(batch_request: BatchDetailsRequest):
     try:
         ids = batch_request.ids[:10]
@@ -32,7 +37,7 @@ async def get_recipes_details_batch(batch_request: BatchDetailsRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/recipe/{recipe_id}")
+@router.get("/api/recipe/{recipe_id}", dependencies=RECIPE_LIMITS)
 async def get_recipe_full_details(recipe_id: str):
     try:
         details = await get_recipe_details(recipe_id)

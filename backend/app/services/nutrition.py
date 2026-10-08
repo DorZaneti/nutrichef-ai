@@ -9,6 +9,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.cache import food_cache, nutrition_cache, recipe_parse_cache
 from app.config import FAST_MODEL, USDA_API_KEY, USDA_BASE, client
 from app.db import async_session_maker
+from app.limits import spend_claude_call
 from app.models import FoodNutrient
 
 # Recipe nutrition = Σ (grams of each ingredient × USDA per-100g values).
@@ -86,6 +87,7 @@ _PARSE_SCHEMA = {
 
 async def parse_ingredient_lines(recipe_name: str, lines: List[str], instructions: str = "") -> Dict:
     """Ask Claude for grams + a USDA search term per ingredient line, and the recipe's servings."""
+    spend_claude_call(FAST_MODEL)
     response = await client.messages.create(
         model=FAST_MODEL,
         max_tokens=8000,
@@ -246,6 +248,7 @@ async def choose_matches(requests: List[Dict]) -> List[Optional[Dict]]:
         }
         for i, r in enumerate(requests)
     ]
+    spend_claude_call(FAST_MODEL)
     response = await client.messages.create(
         model=FAST_MODEL,
         max_tokens=8000,

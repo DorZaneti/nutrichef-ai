@@ -41,7 +41,7 @@ function InsightsPanel({ lastWeek, stats, online, showToast, profile }) {
       });
     } catch (error) {
       console.error('Error generating insights:', error);
-      showToast(t('insights.error'), 'error');
+      showToast(error.response?.status === 429 ? t('common.dailyLimit') : t('insights.error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ function InsightsPanel({ lastWeek, stats, online, showToast, profile }) {
 
   // Auto-generate when this tab is opened, if this week's insight isn't
   // cached locally yet — the server also caches per device+week, so this
-  // never triggers a redundant Opus call once someone's generated it today.
+  // never triggers a redundant Claude call once someone's generated it today.
   useEffect(() => {
     if (!online) return;
     const currentWeekStart = isoWeekStart(new Date());

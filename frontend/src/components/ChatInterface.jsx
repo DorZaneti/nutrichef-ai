@@ -66,7 +66,7 @@ function ChatInterface({
       (response.data.actions || []).forEach(onAgentAction);
     } catch (err) {
       console.error('Error sending message:', err);
-      setError(t('chat.errorSend'));
+      setError(err.response?.status === 429 ? t('common.dailyLimit') : t('chat.errorSend'));
       if (!overrideText) setMessage(userMessage);
     }
   };
@@ -113,7 +113,12 @@ function ChatInterface({
         console.error('Chat stream failed:', err);
         setStreamingReply(null);
         setToolStatus(null);
-        if (gotEvent) {
+        if (err.dailyLimit) {
+          // Retrying through the fallback would only hit the same limit.
+          setError(t('common.dailyLimit'));
+          if (!gotEvent && !overrideText) setMessage(userMessage);
+          setIsLoading(false);
+        } else if (gotEvent) {
           // Actions may already have been applied — don't replay the turn.
           setError(t('chat.errorInterrupted'));
           setIsLoading(false);
@@ -208,6 +213,7 @@ function ChatInterface({
           disabled={isLoading || !online}
           className="chat-input"
           autoComplete="off"
+          maxLength={500}
         />
         <button type="submit" disabled={isLoading || !online || !message.trim()} className="send-button">
           {isLoading ? '…' : t('chat.send')}

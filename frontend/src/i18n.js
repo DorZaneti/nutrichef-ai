@@ -46,6 +46,7 @@ const en = {
   'chat.send': 'Send',
   'chat.errorSend': "Couldn't send the message. Please try again.",
   'chat.errorInterrupted': 'Connection interrupted. Please try again.',
+  'common.dailyLimit': "This demo has hit today's AI usage limit. Please come back tomorrow 🙂",
   'chat.typing': 'NutriChef is typing…',
 
   'tool.update_ingredients': 'Updating your kitchen…',
@@ -282,6 +283,7 @@ const he = {
   'chat.send': 'שליחה',
   'chat.errorSend': 'לא הצלחנו לשלוח את ההודעה. נסו שוב.',
   'chat.errorInterrupted': 'החיבור נקטע. נסו שוב.',
+  'common.dailyLimit': 'הדמו הגיע למכסת השימוש היומית ב-AI. נסו שוב מחר 🙂',
   'chat.typing': 'NutriChef כותב…',
 
   'tool.update_ingredients': 'מעדכן את המטבח…',

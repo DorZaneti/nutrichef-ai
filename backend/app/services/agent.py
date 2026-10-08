@@ -1,7 +1,8 @@
 import json
 from typing import AsyncIterator, Dict, List, Optional
 
-from app.config import CHAT_MODEL, REFUSAL_FALLBACK, client
+from app.config import CHAT_HISTORY_MESSAGES, CHAT_MODEL, REFUSAL_FALLBACK, client
+from app.limits import spend_claude_call
 from app.schemas import ChatMessage, Profile, TodayTotals
 from app.services.agent_tools import TOOLS, AgentContext, ToolInputError, run_tool
 from app.services.targets import daily_targets
@@ -18,8 +19,22 @@ How to work:
 - Reply in the language the user writes in. Tool inputs are always in English.
 - Keep replies short and warm: a few sentences or a short list. Use **bold** for recipe names."""
 
-MAX_TOOL_ROUNDS = 6
+# The last round runs with tools disabled, so a turn always ends with a reply.
+MAX_TOOL_ROUNDS = 4
 MAX_JSON_RETRIES = 2
+MAX_HISTORY_CHARS = 2000  # per resent history message
+
+
+def _recent_history(history: Optional[List[Dict]]) -> List[Dict]:
+    """The last few text turns, starting on a user turn. Older ones aren't worth resending every message."""
+    recent = [
+        {"role": m["role"], "content": m["content"][:MAX_HISTORY_CHARS]}
+        for m in (history or [])[-CHAT_HISTORY_MESSAGES:]
+        if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str)
+    ]
+    while recent and recent[0]["role"] != "user":
+        recent.pop(0)
+    return recent
 
 
 def _context_block(ctx: AgentContext) -> str:
@@ -55,21 +70,24 @@ async def run_agent(chat_request: ChatMessage) -> AsyncIterator[Dict]:
         profile=chat_request.profile,
         today_totals=(chat_request.today_totals or TodayTotals()).model_copy(),
     )
-    messages: List[Dict] = list(chat_request.conversation_history or []) + [
+    messages: List[Dict] = _recent_history(chat_request.conversation_history) + [
         {"role": "user", "content": chat_request.message + _context_block(ctx)}
     ]
     emitted_text = False
 
-    for _ in range(MAX_TOOL_ROUNDS):
+    for round_index in range(MAX_TOOL_ROUNDS):
+        last_round = round_index == MAX_TOOL_ROUNDS - 1
         json_retries = 0
         while True:
             try:
                 round_started = True
+                spend_claude_call(CHAT_MODEL)
                 async with client.messages.stream(
                     model=CHAT_MODEL,
-                    max_tokens=16000,
+                    max_tokens=4000,
                     system=SYSTEM_PROMPT,
                     tools=TOOLS,
+                    tool_choice={"type": "none"} if last_round else {"type": "auto"},
                     messages=messages,
                     output_config={"effort": "medium"},
                     **REFUSAL_FALLBACK,

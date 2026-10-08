@@ -2,6 +2,8 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from app.config import CHAT_MAX_CHARS
+
 
 class Ingredient(BaseModel):
     name: str
@@ -29,9 +31,9 @@ class TodayTotals(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=CHAT_MAX_CHARS)
     conversation_history: Optional[List[Dict]] = []
-    current_ingredients: Optional[List[Ingredient]] = []
+    current_ingredients: Optional[List[Ingredient]] = Field(default_factory=list, max_length=100)
     profile: Optional[Profile] = None
     today_totals: Optional[TodayTotals] = None
 

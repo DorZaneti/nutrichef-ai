@@ -4,6 +4,13 @@ import { deviceId } from '../hooks/useDeviceId';
 // support streamed responses in the browser. Same base URL as api/client.js.
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+// The server's daily demo limit (HTTP 429, or an error event mid-turn).
+function limitError() {
+  const error = new Error('Daily demo limit reached');
+  error.dailyLimit = true;
+  return error;
+}
+
 export async function streamChat({
   message,
   conversationHistory,
@@ -29,6 +36,7 @@ export async function streamChat({
       }),
     });
 
+    if (response.status === 429) throw limitError();
     if (!response.ok || !response.body) {
       throw new Error(`Stream request failed: ${response.status}`);
     }
@@ -60,7 +68,9 @@ export async function streamChat({
         else if (eventName === 'tool_status') onToolStatus?.(parsed.tool);
         else if (eventName === 'action') onAction?.(parsed);
         else if (eventName === 'done') onDone?.(parsed.response);
-        else if (eventName === 'error') throw new Error(parsed.detail || 'Stream error');
+        else if (eventName === 'error') {
+          throw parsed.code === 'daily_limit' ? limitError() : new Error(parsed.detail || 'Stream error');
+        }
       }
     }
   } catch (error) {

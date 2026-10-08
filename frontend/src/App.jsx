@@ -178,7 +178,7 @@ function App() {
       showRecipeResults(response.data.recipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
-      setRecipeError(t('recipes.errorFetch'));
+      setRecipeError(error.response?.status === 429 ? t('common.dailyLimit') : t('recipes.errorFetch'));
     } finally {
       setIsLoadingRecipes(false);
     }

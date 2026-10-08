@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import INSIGHTS_LIMIT_PER_IP
 from app.db import get_session
+from app.limits import LIMIT_DETAIL, BudgetExceeded, take_per_ip
 from app.models import ActivityEntryRow, WeeklyInsight
 from app.schemas import ActivityEntry, InsightsRequest
 from app.services.ai import generate_weekly_insights
@@ -23,6 +25,7 @@ def _iso_week_start(day: datetime) -> str:
 @router.post("/api/insights")
 async def weekly_insights(
     request: InsightsRequest,
+    http_request: Request,
     x_device_id: Optional[str] = Header(None, alias="X-Device-Id"),
     refresh: bool = Query(False),
     session: AsyncSession = Depends(get_session),
@@ -30,6 +33,7 @@ async def weekly_insights(
     try:
         if not x_device_id:
             # Deviceless path, unchanged: caller supplies its own activity log.
+            take_per_ip(http_request, "insights", INSIGHTS_LIMIT_PER_IP)
             insights = await generate_weekly_insights(
                 request.activity,
                 request.streak_days,
@@ -71,6 +75,8 @@ async def weekly_insights(
             for row in result.scalars().all()
         ]
 
+        # Only fresh generations count; cached ones above are free.
+        take_per_ip(http_request, "insights", INSIGHTS_LIMIT_PER_IP)
         insights = await generate_weekly_insights(
             activity,
             request.streak_days,
@@ -104,5 +110,9 @@ async def weekly_insights(
         await session.commit()
 
         return {"insights": insights, "cached": False}
+    except HTTPException:
+        raise
+    except BudgetExceeded:
+        raise HTTPException(status_code=429, detail=LIMIT_DETAIL)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

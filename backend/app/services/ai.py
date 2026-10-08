@@ -3,7 +3,8 @@ import re
 from typing import Dict, List, Optional
 
 from app.cache import translation_cache
-from app.config import FAST_MODEL, INSIGHTS_MODEL, REFUSAL_FALLBACK, client
+from app.config import FAST_MODEL, INSIGHTS_MODEL, client
+from app.limits import spend_claude_call
 from app.schemas import ActivityEntry
 
 _NON_LATIN = re.compile(r"[^\x00-\x7f]")
@@ -14,6 +15,7 @@ async def translate_to_english(names: List[str]) -> List[str]:
     pending = [n for n in dict.fromkeys(names) if _NON_LATIN.search(n) and translation_cache.get(n) is None]
     if pending:
         try:
+            spend_claude_call(FAST_MODEL)
             response = await client.messages.create(
                 model=FAST_MODEL,
                 max_tokens=4000,
@@ -71,10 +73,10 @@ async def generate_weekly_insights(
             f"{targets.get('daily_protein_g') or 'not set'}g protein"
         )
 
+    spend_claude_call(INSIGHTS_MODEL)
     response = await client.messages.create(
         model=INSIGHTS_MODEL,
-        max_tokens=8000,
-        **REFUSAL_FALLBACK,
+        max_tokens=3000,
         system=(
             "You are a nutrition coach analyzing a user's weekly activity in a recipe app. "
             "Given their recipe activity log, produce exactly three concise, specific, encouraging insights: "
