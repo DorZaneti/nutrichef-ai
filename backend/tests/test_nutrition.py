@@ -1,4 +1,4 @@
-from app.services.nutrition import MIN_MATCH_SCORE, aggregate, confidence_for, is_branded, match_score, parse_usda_food
+from app.services.nutrition import MIN_MATCH_SCORE, aggregate, best_match, confidence_for, is_branded, match_score, parse_usda_food
 
 CHICKEN_SEARCH_HIT = {
     "fdcId": 2646170,
@@ -90,3 +90,17 @@ def test_generic_foods_beat_branded_ones():
     assert match_score(query, generic) > match_score(query, branded)
     # Still usable when no generic entry matches.
     assert match_score("vegetable broth", "Soup, SWANSON, vegetable broth") > MIN_MATCH_SCORE
+
+
+def _hit(description, kcal):
+    return {"description": description, "foodNutrients": [{"nutrientId": 1008, "value": kcal, "unitName": "KCAL"}]}
+
+
+def test_best_match_picks_generic_over_earlier_branded_hit():
+    foods = [
+        _hit("Rice, brown, parboiled, cooked, UNCLE BENS", 147),
+        _hit("Snacks, rice cakes, brown rice, plain", 387),
+        _hit("Rice, brown, long-grain, cooked", 123),
+    ]
+    assert best_match("rice brown cooked", foods)["description"] == "Rice, brown, long-grain, cooked"
+    assert best_match("cornstarch", foods) is None

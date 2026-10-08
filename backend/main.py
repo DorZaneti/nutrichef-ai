@@ -55,6 +55,8 @@ def health_check():
         "anthropic_configured": bool(ANTHROPIC_API_KEY),
         # False means the shared, heavily rate-limited DEMO_KEY is in use.
         "usda_key_configured": USDA_API_KEY != "DEMO_KEY",
+        # Render sets this; shows which commit is actually live.
+        "version": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
     }
 
 

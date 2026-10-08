@@ -34,7 +34,7 @@ MIN_MATCH_SCORE = 0.5
 # enough that a branded food is still used when nothing generic matches.
 BRANDED_PENALTY = 0.4
 # Bump when matching changes so previously cached (possibly wrong) matches are ignored.
-_CACHE_VERSION = "v3"
+_CACHE_VERSION = "v4"
 
 # Stay well under the USDA rate limit when a recipe fans out to ~20 lookups.
 _usda_semaphore = asyncio.Semaphore(4)
@@ -165,20 +165,10 @@ def is_branded(description: str) -> bool:
     return any(len(w) >= 3 and w.isupper() for w in re.findall(r"[A-Za-z']+", description))
 
 
-async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
-    async with _usda_semaphore:
-        r = await http.get(
-            f"{USDA_BASE}/foods/search",
-            params={
-                "query": query,
-                "dataType": "Foundation,SR Legacy",
-                "pageSize": 10,
-                "api_key": USDA_API_KEY,
-            },
-        )
-    r.raise_for_status()
+def best_match(query: str, foods: List[Dict]) -> Optional[Dict]:
+    """Highest-scoring USDA hit with an energy value, or None if nothing fits."""
     best, best_score = None, MIN_MATCH_SCORE
-    for food in r.json().get("foods", []):
+    for food in foods:
         per_100g = parse_usda_food(food)
         if per_100g is None:
             continue
@@ -186,6 +176,32 @@ async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
         if score > best_score:  # strict: ties keep USDA's earlier-ranked result
             best, best_score = {"fdc_id": food.get("fdcId"), "description": food.get("description"), **per_100g}, score
     return best
+
+
+async def _search_usda(http: httpx.AsyncClient, query: str, require_all_words: bool) -> List[Dict]:
+    async with _usda_semaphore:
+        r = await http.get(
+            f"{USDA_BASE}/foods/search",
+            params={
+                "query": query,
+                "dataType": "Foundation,SR Legacy",
+                "pageSize": 25,
+                "requireAllWords": str(require_all_words).lower(),
+                "api_key": USDA_API_KEY,
+            },
+        )
+    r.raise_for_status()
+    return r.json().get("foods", [])
+
+
+async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
+    # Foods containing every query word first: for "rice brown cooked" this
+    # keeps rice cakes and cereals from crowding the generic entry out of the
+    # results. Fall back to a normal search when that finds nothing usable.
+    match = best_match(query, await _search_usda(http, query, require_all_words=True))
+    if match is None:
+        match = best_match(query, await _search_usda(http, query, require_all_words=False))
+    return match
 
 
 async def lookup_food(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
