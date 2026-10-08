@@ -1,4 +1,4 @@
-from app.services.nutrition import MIN_MATCH_SCORE, aggregate, best_match, confidence_for, is_branded, match_score, parse_usda_food
+from app.services.nutrition import aggregate, confidence_for, is_branded, parse_usda_food, rank_candidates
 
 CHICKEN_SEARCH_HIT = {
     "fdcId": 2646170,
@@ -74,33 +74,75 @@ def test_confidence_thresholds():
     assert confidence_for(0.59) == "low"
 
 
-def test_match_score_rejects_unrelated_usda_hits():
-    query = "vegetables mixed stir-fry"
-    assert match_score(query, "Vegetables, mixed, frozen, unprepared") > match_score(query, "Salsify, (vegetable oyster), raw")
-    assert match_score("chicken breast raw", "Chicken, breast, boneless, skinless, raw") >= 1.5
-    assert match_score("soy sauce", "Soy sauce made from soy (tamari)") >= 1.5
-    assert match_score("cornstarch", "Salsify, (vegetable oyster), raw") < MIN_MATCH_SCORE
-
-
-def test_generic_foods_beat_branded_ones():
-    query = "rice brown cooked"
-    generic = "Rice, brown, long-grain, cooked"
-    branded = "Rice, brown, parboiled, cooked, UNCLE BENS"
-    assert is_branded(branded) and not is_branded(generic)
-    assert match_score(query, generic) > match_score(query, branded)
-    # Still usable when no generic entry matches.
-    assert match_score("vegetable broth", "Soup, SWANSON, vegetable broth") > MIN_MATCH_SCORE
-
-
 def _hit(description, kcal):
-    return {"description": description, "foodNutrients": [{"nutrientId": 1008, "value": kcal, "unitName": "KCAL"}]}
+    return {"fdcId": 1, "description": description, "foodNutrients": [{"nutrientId": 1008, "value": kcal, "unitName": "KCAL"}]}
 
 
-def test_best_match_picks_generic_over_earlier_branded_hit():
+def test_rank_candidates_drops_unrelated_and_sorts_branded_last():
     foods = [
         _hit("Rice, brown, parboiled, cooked, UNCLE BENS", 147),
-        _hit("Snacks, rice cakes, brown rice, plain", 387),
+        _hit("Salsify, (vegetable oyster), raw", 82),
         _hit("Rice, brown, long-grain, cooked", 123),
+        {"fdcId": 2, "description": "Rice, brown, no energy listed", "foodNutrients": []},
     ]
-    assert best_match("rice brown cooked", foods)["description"] == "Rice, brown, long-grain, cooked"
-    assert best_match("cornstarch", foods) is None
+    ranked = [c["description"] for c in rank_candidates("rice brown cooked", foods)]
+    assert ranked == ["Rice, brown, long-grain, cooked", "Rice, brown, parboiled, cooked, UNCLE BENS"]
+
+
+def test_is_branded():
+    assert is_branded("Soup, SWANSON, vegetable broth")
+    assert not is_branded("Rice, brown, long-grain, cooked (Includes foods for USDA's Food Distribution Program)")
+
+
+def test_lookup_foods_flow(tmp_path, monkeypatch):
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    import app.db as db
+    import app.services.nutrition as nutrition
+    from app.cache import TTLCache
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setattr(db, "engine", engine)
+    monkeypatch.setattr(nutrition, "async_session_maker", async_sessionmaker(engine, expire_on_commit=False))
+    monkeypatch.setattr(nutrition, "food_cache", TTLCache(ttl_seconds=60))
+
+    rice = {"fdc_id": 1, "description": "Rice, brown, long-grain, cooked", "calories": 123.0,
+            "protein": 2.7, "carbs": 25.6, "fat": 1.0}
+    searched, chosen_calls = [], []
+
+    async def fake_candidates(http, query):
+        searched.append(query)
+        if query == "rate limited":
+            raise RuntimeError("429")
+        return [] if query == "unobtainium" else [rice]
+
+    async def fake_choose(requests):
+        chosen_calls.append([r["query"] for r in requests])
+        return [r["candidates"][0] for r in requests]
+
+    monkeypatch.setattr(nutrition, "usda_candidates", fake_candidates)
+    monkeypatch.setattr(nutrition, "choose_matches", fake_choose)
+
+    items = [
+        {"line": "3 cups brown rice", "query": "Rice brown cooked"},
+        {"line": "1 cup water", "query": "water"},
+        {"line": "a pinch of unobtainium", "query": "unobtainium"},
+        {"line": "salt", "query": "rate limited"},
+    ]
+
+    async def run():
+        await db.init_db()
+        first = await nutrition.lookup_foods(None, items)
+        second = await nutrition.lookup_foods(None, items[:3])
+        return first, second
+
+    first, second = asyncio.run(run())
+    assert first[0]["description"] == rice["description"]
+    assert first[1]["calories"] == 0.0                # water never hits USDA
+    assert first[2] is None                           # no candidates → real miss
+    assert isinstance(first[3], RuntimeError)         # transient failure surfaced, not cached
+    assert chosen_calls == [["Rice brown cooked"]]    # one Claude call, only for items with candidates
+    assert second[0]["description"] == rice["description"] and second[2] is None
+    assert searched == ["rice brown cooked", "unobtainium", "rate limited"]  # second run fully cached

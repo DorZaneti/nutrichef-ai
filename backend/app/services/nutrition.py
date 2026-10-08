@@ -13,7 +13,8 @@ from app.models import FoodNutrient
 
 # Recipe nutrition = Σ (grams of each ingredient × USDA per-100g values).
 # Claude only does what it's good at — turning "2 tbsp soy sauce" into a
-# gram weight and a USDA search term. The numbers come from USDA.
+# gram weight and a USDA search term, and picking which USDA search result is
+# actually that food. The numbers come from USDA.
 
 MACROS = ("calories", "protein", "carbs", "fat")
 
@@ -28,13 +29,12 @@ CONFIDENCE_MEDIUM = 0.60
 # USDA's search ranks these badly ("water" → "Water convolvulus") and they're 0 kcal anyway.
 ZERO_CALORIE_QUERIES = {"water", "ice", "tap water", "cold water", "boiling water", "ice cubes"}
 
-# Below this, a USDA result is treated as no match and the Claude estimate is used.
-MIN_MATCH_SCORE = 0.5
-# Big enough that a generic food with the same word overlap always wins, small
-# enough that a branded food is still used when nothing generic matches.
+# USDA search results shown to Claude per ingredient when it picks the match.
+MAX_CANDIDATES = 8
+# Pre-ranking only: branded entries sort below generic ones with the same words.
 BRANDED_PENALTY = 0.4
 # Bump when matching changes so previously cached (possibly wrong) matches are ignored.
-_CACHE_VERSION = "v4"
+_CACHE_VERSION = "v5"
 
 # Stay well under the USDA rate limit when a recipe fans out to ~20 lookups.
 _usda_semaphore = asyncio.Semaphore(4)
@@ -138,23 +138,18 @@ def _words(text: str) -> Set[str]:
     return words
 
 
-def match_score(query: str, description: str) -> float:
-    """How well a USDA description fits the search term.
+def candidate_score(query: str, description: str) -> float:
+    """Pre-ranking of USDA hits: share of query words in the description, branded entries last.
 
-    USDA's own ranking can put an unrelated food first ("stir-fry vegetables"
-    → "Salsify (vegetable oyster)"), so we score the overlap ourselves: the
-    share of query words found in the description, plus a bonus when the
-    description's lead word (USDA's main food name) is one of them. Branded
-    entries ("Rice, brown, parboiled, cooked, UNCLE BENS") are penalized so
-    the generic food wins when both match — a recipe means the generic one.
+    Word overlap alone can't tell "Rice, brown, long-grain, cooked" from "Pork
+    sausage rice links, brown and serve, cooked" — Claude makes the final pick
+    (see choose_matches). This only decides which hits Claude gets to see.
     """
     query_words = _words(query)
     desc = _words(description)
     if not query_words or not desc:
         return 0.0
-    overlap = len(query_words & desc) / len(query_words)
-    lead = _words(description.split(",")[0])
-    score = overlap + (0.5 if lead & query_words else 0.0)
+    score = len(query_words & desc) / len(query_words)
     if is_branded(description):
         score -= BRANDED_PENALTY
     return score
@@ -165,17 +160,18 @@ def is_branded(description: str) -> bool:
     return any(len(w) >= 3 and w.isupper() for w in re.findall(r"[A-Za-z']+", description))
 
 
-def best_match(query: str, foods: List[Dict]) -> Optional[Dict]:
-    """Highest-scoring USDA hit with an energy value, or None if nothing fits."""
-    best, best_score = None, MIN_MATCH_SCORE
+def rank_candidates(query: str, foods: List[Dict]) -> List[Dict]:
+    """USDA hits with an energy value and some word overlap, best first, at most MAX_CANDIDATES."""
+    scored = []
     for food in foods:
         per_100g = parse_usda_food(food)
-        if per_100g is None:
+        description = food.get("description") or ""
+        score = candidate_score(query, description)
+        if per_100g is None or score <= 0:
             continue
-        score = match_score(query, food.get("description") or "")
-        if score > best_score:  # strict: ties keep USDA's earlier-ranked result
-            best, best_score = {"fdc_id": food.get("fdcId"), "description": food.get("description"), **per_100g}, score
-    return best
+        scored.append((score, {"fdc_id": food.get("fdcId"), "description": description, **per_100g}))
+    scored.sort(key=lambda pair: pair[0], reverse=True)  # stable: ties keep USDA's order
+    return [candidate for _, candidate in scored[:MAX_CANDIDATES]]
 
 
 async def _search_usda(http: httpx.AsyncClient, query: str, require_all_words: bool) -> List[Dict]:
@@ -194,50 +190,158 @@ async def _search_usda(http: httpx.AsyncClient, query: str, require_all_words: b
     return r.json().get("foods", [])
 
 
-async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
-    # Foods containing every query word first: for "rice brown cooked" this
-    # keeps rice cakes and cereals from crowding the generic entry out of the
-    # results. Fall back to a normal search when that finds nothing usable.
-    match = best_match(query, await _search_usda(http, query, require_all_words=True))
-    if match is None:
-        match = best_match(query, await _search_usda(http, query, require_all_words=False))
-    return match
+async def usda_candidates(http: httpx.AsyncClient, query: str) -> List[Dict]:
+    # Foods containing every query word first, so rice cakes and cereals don't
+    # crowd plain "rice brown cooked" out; a normal search if that finds nothing.
+    candidates = rank_candidates(query, await _search_usda(http, query, require_all_words=True))
+    if not candidates:
+        candidates = rank_candidates(query, await _search_usda(http, query, require_all_words=False))
+    return candidates
 
 
-async def lookup_food(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
-    """USDA per-100g values for a search term. Memory cache → SQLite cache → USDA API.
+_CHOOSE_SYSTEM = (
+    "You match recipe ingredients to USDA FoodData Central entries for calorie counting. For each "
+    "ingredient you get the recipe line, 'weighed_as' (the food and form its gram weight refers to — "
+    "raw, cooked, dry, etc.) and a numbered list of candidate entries. Pick the entry that is the same food "
+    "in exactly the 'weighed_as' form: raw meat must not match a cooked entry, dry pasta must not match "
+    "cooked pasta, a dried spice must not match a fresh vegetable. Prefer generic "
+    "entries over branded ones (brand names are in CAPITALS) when both fit. A different food that merely "
+    "shares words is NOT a match — e.g. 'Pork sausage rice links' for brown rice, or 'Peppers, bell, red' "
+    "for red pepper flakes (that's 'Spices, pepper, red or cayenne'). If no candidate is the same food, "
+    "answer -1."
+)
 
-    Returns None when USDA has no match. Raises on transient failures (rate
-    limit, outage) so callers don't mistake them for a real miss.
+_CHOOSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "choices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"item": {"type": "integer"}, "choice": {"type": "integer"}},
+                "required": ["item", "choice"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["choices"],
+    "additionalProperties": False,
+}
+
+
+async def choose_matches(requests: List[Dict]) -> List[Optional[Dict]]:
+    """One Claude call picks the right candidate (or none) for every ingredient.
+
+    Each request is {"line", "query", "candidates"}; returns the chosen candidate or None per request.
     """
-    query = query.strip().lower()
-    if query in ZERO_CALORIE_QUERIES:
-        return {"fdc_id": None, "description": "Water", **{m: 0.0 for m in MACROS}}
-    key = f"{_CACHE_VERSION}:{query}"
+    payload = [
+        {
+            "item": i,
+            "ingredient": r["line"],
+            "weighed_as": r["query"],
+            "candidates": [
+                {"n": n, "description": c["description"], "kcal_per_100g": round(c["calories"])}
+                for n, c in enumerate(r["candidates"])
+            ],
+        }
+        for i, r in enumerate(requests)
+    ]
+    response = await client.messages.create(
+        model=FAST_MODEL,
+        max_tokens=8000,
+        system=_CHOOSE_SYSTEM,
+        messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
+        output_config={"effort": "low", "format": {"type": "json_schema", "schema": _CHOOSE_SCHEMA}},
+    )
+    text = next(b.text for b in response.content if b.type == "text")
+    picks = {c["item"]: c["choice"] for c in json.loads(text)["choices"]}
+    chosen = []
+    for i, r in enumerate(requests):
+        n = picks.get(i, -1)
+        chosen.append(r["candidates"][n] if 0 <= n < len(r["candidates"]) else None)
+    return chosen
+
+
+_MISS = object()
+
+
+async def _cached_match(key: str):
+    """The stored match for a cache key, None for a stored miss, or _MISS if never looked up."""
     cached = food_cache.get(key)
     if cached is not None:
         return cached or None  # {} is a cached miss
-
     async with async_session_maker() as session:
         row = await session.get(FoodNutrient, key)
-        if row is not None:
-            hit = (
-                {"fdc_id": row.fdc_id, "description": row.description, **{m: getattr(row, m) for m in MACROS}}
-                if row.calories is not None
-                else {}
-            )
-            food_cache.set(key, hit)
-            return hit or None
+    if row is None:
+        return _MISS
+    hit = (
+        {"fdc_id": row.fdc_id, "description": row.description, **{m: getattr(row, m) for m in MACROS}}
+        if row.calories is not None
+        else {}
+    )
+    food_cache.set(key, hit)
+    return hit or None
 
-        hit = await _fetch_usda(http, query)
 
-        # Two lookups of the same term can race here; the second insert is a no-op.
+async def _store_match(key: str, hit: Optional[Dict]) -> None:
+    async with async_session_maker() as session:
+        # Two lookups of the same term can race; the second insert is a no-op.
         await session.execute(
             sqlite_insert(FoodNutrient).values(query=key, **(hit or {})).on_conflict_do_nothing(index_elements=["query"])
         )
         await session.commit()
     food_cache.set(key, hit or {})
-    return hit
+
+
+async def lookup_foods(http: httpx.AsyncClient, items: List[Dict]) -> List:
+    """USDA per-100g values for each {"line", "query"}: a dict, None (no USDA match), or the
+    Exception for a transient failure (rate limit, outage) so callers don't cache it as a miss.
+
+    Memory cache → SQLite cache → USDA candidates + one Claude call to pick among them.
+    """
+    results: List = [None] * len(items)
+    keys = []
+    pending = []  # indexes that need a fresh lookup
+    for i, item in enumerate(items):
+        query = item["query"].strip().lower()
+        keys.append(f"{_CACHE_VERSION}:{query}")
+        if query in ZERO_CALORIE_QUERIES:
+            results[i] = {"fdc_id": None, "description": "Water", **{m: 0.0 for m in MACROS}}
+            continue
+        cached = await _cached_match(keys[i])
+        if cached is _MISS:
+            pending.append(i)
+        else:
+            results[i] = cached
+    if not pending:
+        return results
+
+    searches = await asyncio.gather(
+        *[usda_candidates(http, items[i]["query"].strip().lower()) for i in pending], return_exceptions=True
+    )
+    to_choose = []
+    for i, found in zip(pending, searches):
+        if isinstance(found, Exception):
+            results[i] = found
+        elif not found:
+            await _store_match(keys[i], None)
+        else:
+            to_choose.append((i, found))
+    if not to_choose:
+        return results
+
+    try:
+        chosen = await choose_matches(
+            [{"line": items[i]["line"], "query": items[i]["query"], "candidates": c} for i, c in to_choose]
+        )
+    except Exception as e:
+        for i, _ in to_choose:
+            results[i] = e
+        return results
+    for (i, _), hit in zip(to_choose, chosen):
+        results[i] = hit
+        await _store_match(keys[i], hit)
+    return results
 
 
 def confidence_for(usda_share: float) -> str:
@@ -300,8 +404,8 @@ async def compute_recipe_nutrition(recipe_id: str, recipe_name: str, lines: List
             recipe_parse_cache.set(recipe_id, parsed)
         items = parsed.get("items", [])
         async with httpx.AsyncClient(timeout=15) as http:
-            outcomes = await asyncio.gather(
-                *[lookup_food(http, item["usda_query"]) for item in items], return_exceptions=True
+            outcomes = await lookup_foods(
+                http, [{"line": item.get("line", ""), "query": item["usda_query"]} for item in items]
             )
         failed = [o for o in outcomes if isinstance(o, Exception)]
         if failed:
@@ -323,7 +427,9 @@ async def compute_recipe_nutrition(recipe_id: str, recipe_name: str, lines: List
 async def nutrition_for_food(food: str, grams: float) -> Optional[Dict]:
     """Macros for a single food at a given weight — USDA only, None if no match."""
     async with httpx.AsyncClient(timeout=15) as http:
-        hit = await lookup_food(http, food)
+        [hit] = await lookup_foods(http, [{"line": f"{grams:g}g {food}", "query": food}])
+    if isinstance(hit, Exception):
+        raise hit
     if not hit:
         return None
     return {
