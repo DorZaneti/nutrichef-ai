@@ -1,4 +1,4 @@
-from app.services.nutrition import MIN_MATCH_SCORE, aggregate, confidence_for, match_score, parse_usda_food
+from app.services.nutrition import MIN_MATCH_SCORE, aggregate, confidence_for, is_branded, match_score, parse_usda_food
 
 CHICKEN_SEARCH_HIT = {
     "fdcId": 2646170,
@@ -80,3 +80,13 @@ def test_match_score_rejects_unrelated_usda_hits():
     assert match_score("chicken breast raw", "Chicken, breast, boneless, skinless, raw") >= 1.5
     assert match_score("soy sauce", "Soy sauce made from soy (tamari)") >= 1.5
     assert match_score("cornstarch", "Salsify, (vegetable oyster), raw") < MIN_MATCH_SCORE
+
+
+def test_generic_foods_beat_branded_ones():
+    query = "rice brown cooked"
+    generic = "Rice, brown, long-grain, cooked"
+    branded = "Rice, brown, parboiled, cooked, UNCLE BENS"
+    assert is_branded(branded) and not is_branded(generic)
+    assert match_score(query, generic) > match_score(query, branded)
+    # Still usable when no generic entry matches.
+    assert match_score("vegetable broth", "Soup, SWANSON, vegetable broth") > MIN_MATCH_SCORE

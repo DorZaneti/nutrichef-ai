@@ -30,8 +30,11 @@ ZERO_CALORIE_QUERIES = {"water", "ice", "tap water", "cold water", "boiling wate
 
 # Below this, a USDA result is treated as no match and the Claude estimate is used.
 MIN_MATCH_SCORE = 0.5
+# Big enough that a generic food with the same word overlap always wins, small
+# enough that a branded food is still used when nothing generic matches.
+BRANDED_PENALTY = 0.4
 # Bump when matching changes so previously cached (possibly wrong) matches are ignored.
-_CACHE_VERSION = "v2"
+_CACHE_VERSION = "v3"
 
 # Stay well under the USDA rate limit when a recipe fans out to ~20 lookups.
 _usda_semaphore = asyncio.Semaphore(4)
@@ -141,7 +144,9 @@ def match_score(query: str, description: str) -> float:
     USDA's own ranking can put an unrelated food first ("stir-fry vegetables"
     → "Salsify (vegetable oyster)"), so we score the overlap ourselves: the
     share of query words found in the description, plus a bonus when the
-    description's lead word (USDA's main food name) is one of them.
+    description's lead word (USDA's main food name) is one of them. Branded
+    entries ("Rice, brown, parboiled, cooked, UNCLE BENS") are penalized so
+    the generic food wins when both match — a recipe means the generic one.
     """
     query_words = _words(query)
     desc = _words(description)
@@ -149,7 +154,15 @@ def match_score(query: str, description: str) -> float:
         return 0.0
     overlap = len(query_words & desc) / len(query_words)
     lead = _words(description.split(",")[0])
-    return overlap + (0.5 if lead & query_words else 0.0)
+    score = overlap + (0.5 if lead & query_words else 0.0)
+    if is_branded(description):
+        score -= BRANDED_PENALTY
+    return score
+
+
+def is_branded(description: str) -> bool:
+    """USDA writes brand names in capitals (UNCLE BENS, SWANSON, KRAFT)."""
+    return any(len(w) >= 3 and w.isupper() for w in re.findall(r"[A-Za-z']+", description))
 
 
 async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
