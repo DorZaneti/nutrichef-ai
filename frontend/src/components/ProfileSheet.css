@@ -1,0 +1,204 @@
+.profile-sheet {
+  margin: auto;
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-1);
+  box-shadow: var(--shadow-3);
+  padding: 1.5rem;
+}
+
+.profile-sheet::backdrop {
+  background: rgba(10, 10, 20, 0.55);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-head h2 {
+  font-size: 1.3rem;
+}
+
+.profile-close {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.profile-close:hover {
+  background: var(--surface-2);
+}
+
+.profile-intro {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  margin: 0.25rem 0 1.25rem;
+}
+
+.profile-field {
+  border: none;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-field > legend,
+.profile-field > label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 0.5rem;
+}
+
+.profile-sheet select,
+.profile-sheet input[type='number'] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.segment:has(input:focus-visible) {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.allergy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.25rem 0.75rem;
+}
+
+.allergy-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.allergy-option input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.body-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.body-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.body-grid .span-2 {
+  grid-column: span 2;
+}
+
+.profile-computed {
+  font-size: 0.85rem;
+  color: var(--success-strong);
+  background: var(--success-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  position: sticky;
+  bottom: -1.5rem;
+  background: var(--surface);
+  padding: 0.75rem 0 0;
+}
+
+.btn-primary,
+.btn-secondary {
+  min-height: 44px;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--brand-gradient);
+  color: var(--text-on-primary);
+}
+
+.btn-secondary {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-1);
+}
+
+@media (max-width: 480px) {
+  .profile-sheet {
+    padding: 1.1rem;
+  }
+
+  .segmented {
+    grid-template-columns: 1fr;
+  }
+}

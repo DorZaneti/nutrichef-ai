@@ -14,7 +14,9 @@ async def get_recipes(recipe_request: RecipeRequest):
         if not recipe_request.ingredients:
             return {"recipes": [], "count": 0}
 
-        recipes = await search_recipes_by_ingredients(recipe_request.ingredients, number=10)
+        recipes = await search_recipes_by_ingredients(
+            recipe_request.ingredients, number=10, profile=recipe_request.profile
+        )
         return {"recipes": recipes, "count": len(recipes)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

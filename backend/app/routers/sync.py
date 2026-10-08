@@ -31,6 +31,7 @@ async def push_activity(
             "protein": entry.protein,
             "carbs": entry.carbs,
             "fat": entry.fat,
+            "servings": entry.servings,
         }
         for entry in sync_request.entries
     ]
@@ -66,6 +67,7 @@ async def pull_activity(
                 "protein": row.protein,
                 "carbs": row.carbs,
                 "fat": row.fat,
+                "servings": row.servings,
             }
             for row in rows
         ]

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from './api/client';
 import './App.css';
 import celebrate from './celebrate';
@@ -7,38 +7,60 @@ import ChatInterface from './components/ChatInterface';
 import IngredientList from './components/IngredientList';
 import InsightsPanel from './components/InsightsPanel';
 import NutritionCompare from './components/NutritionCompare';
+import ProfileSheet from './components/ProfileSheet';
+import ProgressSummary from './components/ProgressSummary';
 import RecipeCard from './components/RecipeCard';
 import SkeletonCard from './components/SkeletonCard';
 import TabBar from './components/TabBar';
 import Toast from './components/Toast';
+import TodaySummary from './components/TodaySummary';
 import TrendsView from './components/TrendsView';
 import useActivity from './hooks/useActivity';
-import useCountUp from './hooks/useCountUp';
+import useLanguage from './hooks/useLanguage';
 import useOnlineStatus from './hooks/useOnlineStatus';
 import usePersistentState from './hooks/usePersistentState';
+import useProfile from './hooks/useProfile';
 import useTheme from './hooks/useTheme';
 import useToasts from './hooks/useToasts';
+import { LanguageContext } from './i18n';
+
+// Details cached before per-serving USDA nutrition existed have a different shape.
+try {
+  localStorage.removeItem('nutrichef.recipeDetails');
+} catch {
+  // storage unavailable — nothing to clean up
+}
+
+// Nutrition that fell back to estimates because USDA was briefly unavailable
+// is shown, but refetched next time instead of being trusted from cache.
+const hasFinalNutrition = (details) => Boolean(details?.nutrition?.per_serving) && !details.nutrition.incomplete;
 
 function App() {
+  const i18n = useLanguage();
+  const { t, lang, setLang } = i18n;
+
   // Persistent, offline-first state — everything survives a reload.
   const [ingredients, setIngredients] = usePersistentState('nutrichef.ingredients', []);
   const [ingredientsUpdatedAt, setIngredientsUpdatedAt] = usePersistentState('nutrichef.ingredientsUpdatedAt', null);
   const [conversationHistory, setConversationHistory] = usePersistentState('nutrichef.conversation', []);
   const [recipes, setRecipes] = usePersistentState('nutrichef.recipes', []);
   const [showRecipes, setShowRecipes] = usePersistentState('nutrichef.showRecipes', false);
-  const [recipeDetails, setRecipeDetails] = usePersistentState('nutrichef.recipeDetails', {});
+  const [recipeDetails, setRecipeDetails] = usePersistentState('nutrichef.recipeDetails.v2', {});
   const [activeTab, setActiveTab] = usePersistentState('nutrichef.activeTab', 'kitchen');
+  const [nudgeDismissed, setNudgeDismissed] = usePersistentState('nutrichef.goalsNudgeDismissed', false);
 
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
   const [recipeError, setRecipeError] = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const [theme, toggleTheme] = useTheme();
   const online = useOnlineStatus();
-  const { entries, recordActivity, stats, lastWeek, pendingSync, newlyEarned, markAchievementsSeen } = useActivity();
+  const { entries, recordActivity, stats, lastWeek, todayTotals, pendingSync, newlyEarned, markAchievementsSeen } =
+    useActivity();
+  const { profile, saveProfile, targets, apiProfile } = useProfile(lang);
   const [toasts, showToast] = useToasts();
 
-  const autoSearchQueued = useRef(false);
   const prevExplored = useRef(stats.explored);
   const skipIngredientsSync = useRef(true);
 
@@ -101,31 +123,14 @@ function App() {
     [setIngredients]
   );
 
-  // Chat extracted ingredients: add them, then auto-search — no extra tap needed.
-  const addExtractedIngredients = useCallback(
-    (extracted) => {
-      const valid = extracted.filter((ing) => ing.name && ing.weight_grams > 0);
-      if (valid.length === 0) return;
-      valid.forEach((ing) => addIngredient(ing.name, ing.weight_grams));
-      showToast(
-        valid.length === 1
-          ? `Added ${valid[0].name} from chat`
-          : `Added ${valid.length} ingredients from chat`,
-        'success'
-      );
-      autoSearchQueued.current = true;
-    },
-    [addIngredient, showToast]
-  );
-
   const removeIngredient = (index) => {
     setIngredients(ingredients.filter((_, i) => i !== index));
   };
 
-  // Nutrition appears automatically after a search — no "load all" tap needed.
+  // Nutrition appears automatically after a search — no extra tap needed.
   const loadAllNutrition = useCallback(
     async (recipesList) => {
-      const missing = recipesList.filter((r) => !recipeDetails[r.id]);
+      const missing = recipesList.filter((r) => !hasFinalNutrition(recipeDetails[r.id]));
       if (missing.length === 0) return;
       setLoadingAll(true);
       try {
@@ -140,14 +145,24 @@ function App() {
     [recipeDetails, setRecipeDetails]
   );
 
+  const showRecipeResults = useCallback(
+    (list) => {
+      setRecipes(list);
+      setShowRecipes(true);
+      setRecipeError('');
+      loadAllNutrition(list);
+    },
+    [setRecipes, setShowRecipes, loadAllNutrition]
+  );
+
   const findRecipes = useCallback(async () => {
     if (ingredients.length === 0) {
-      setRecipeError('Please add some ingredients first!');
+      setRecipeError(t('recipes.errorEmpty'));
       return;
     }
     if (!online) {
       setShowRecipes(true);
-      showToast('Offline — showing your last results', 'info');
+      showToast(t('recipes.offline'), 'info');
       return;
     }
 
@@ -158,47 +173,68 @@ function App() {
     try {
       const response = await api.post('/api/recipes', {
         ingredients: ingredients.map((ing) => ing.name),
+        profile: apiProfile,
       });
-      setRecipes(response.data.recipes);
-      loadAllNutrition(response.data.recipes);
+      showRecipeResults(response.data.recipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
-      setRecipeError('Failed to fetch recipes. Please try again.');
+      setRecipeError(t('recipes.errorFetch'));
     } finally {
       setIsLoadingRecipes(false);
     }
-  }, [ingredients, online, setRecipes, setShowRecipes, showToast, loadAllNutrition]);
+  }, [ingredients, online, apiProfile, setShowRecipes, showToast, showRecipeResults, t]);
 
-  // Frictionless flow: run the search automatically after chat adds ingredients.
-  useEffect(() => {
-    if (autoSearchQueued.current && ingredients.length > 0) {
-      autoSearchQueued.current = false;
-      findRecipes();
-    }
-  }, [ingredients, findRecipes]);
+  const logMeal = useCallback(
+    (name, nutrition, servings) => {
+      recordActivity(name, 'cooked', nutrition, servings);
+      showToast(t('toast.logged', { name, kcal: Math.round(nutrition.calories || 0) }), 'success');
+    },
+    [recordActivity, showToast, t]
+  );
 
-  // Celebrate milestones as they're crossed.
+  // Things the chat agent did through its tools, applied to local state.
+  const handleAgentAction = useCallback(
+    (action) => {
+      if (action.type === 'update_ingredients') {
+        const removed = new Set((action.remove || []).map((n) => n.toLowerCase()));
+        if (removed.size > 0) setIngredients((prev) => prev.filter((i) => !removed.has(i.name.toLowerCase())));
+        const added = (action.add || []).filter((i) => i.name);
+        added.forEach((i) => addIngredient(i.name, i.weight_grams));
+        if (added.length === 1) showToast(t('toast.added1', { name: added[0].name }), 'success');
+        else if (added.length > 1) showToast(t('toast.addedN', { n: added.length }), 'success');
+      } else if (action.type === 'show_recipes') {
+        showRecipeResults(action.recipes || []);
+      } else if (action.type === 'log_meal') {
+        const { recipe_name: name, servings, ...nutrition } = action.entry;
+        logMeal(name, nutrition, servings);
+      }
+    },
+    [addIngredient, setIngredients, showRecipeResults, logMeal, showToast, t]
+  );
+
+  // Milestones get a toast; confetti is saved for achievements.
   useEffect(() => {
     if (stats.explored > prevExplored.current && stats.explored === stats.prevMilestone) {
-      showToast(`🏆 Milestone: ${stats.explored} recipes explored!`, 'success');
-      celebrate();
+      showToast(t('toast.milestone', { n: stats.explored }), 'success');
     }
     prevExplored.current = stats.explored;
-  }, [stats.explored, stats.prevMilestone, showToast]);
+  }, [stats.explored, stats.prevMilestone, showToast, t]);
 
   // Celebrate newly-earned achievements — one toast per badge, one confetti
   // burst total, then mark them seen so this never re-fires for the same badge.
   useEffect(() => {
     if (newlyEarned.length === 0) return;
-    newlyEarned.forEach((a) => showToast(`${a.icon} Achievement unlocked: ${a.title}`, 'success'));
+    newlyEarned.forEach((a) =>
+      showToast(t('toast.achievement', { icon: a.icon, title: t(`ach.${a.id}.title`) }), 'success')
+    );
     celebrate();
     markAchievementsSeen();
-  }, [newlyEarned, showToast, markAchievementsSeen]);
+  }, [newlyEarned, showToast, markAchievementsSeen, t]);
 
   // Recipe details are cached locally, so revisits (and offline views) are instant.
   const loadRecipeDetails = useCallback(
     async (recipeId) => {
-      if (recipeDetails[recipeId]) return recipeDetails[recipeId];
+      if (hasFinalNutrition(recipeDetails[recipeId])) return recipeDetails[recipeId];
       const response = await api.get(`/api/recipe/${recipeId}`);
       setRecipeDetails((prev) => ({ ...prev, [recipeId]: response.data }));
       return response.data;
@@ -207,17 +243,34 @@ function App() {
   );
 
   const handleViewed = useCallback(
-    (recipe, nutrition) => recordActivity(recipe.name, 'viewed', nutrition || {}),
+    (recipe, perServing) => recordActivity(recipe.name, 'viewed', perServing || {}),
     [recordActivity]
   );
 
-  const handleCooked = useCallback(
-    (recipe, nutrition) => {
-      recordActivity(recipe.name, 'cooked', nutrition || {});
-      showToast(`🍽️ Logged: you cooked ${recipe.name}!`, 'success');
-    },
-    [recordActivity, showToast]
+  const handleAte = useCallback(
+    (recipe, nutrition, servings) => logMeal(recipe.name, nutrition, servings),
+    [logMeal]
   );
+
+  // The recipe that best fits what's left today: the most protein per serving
+  // among those that still fit the remaining calories.
+  const bestFitId = useMemo(() => {
+    if (!targets.daily_kcal) return null;
+    const withNutrition = recipes
+      .map((r) => ({ id: r.id, n: recipeDetails[r.id]?.nutrition?.per_serving }))
+      .filter((r) => r.n);
+    if (withNutrition.length < 2) return null;
+    const remaining = targets.daily_kcal - todayTotals.calories;
+    const fits = withNutrition.filter((r) => r.n.calories <= remaining);
+    const pool = fits.length > 0 ? fits : withNutrition;
+    return pool.reduce((best, r) => (r.n.protein > best.n.protein ? r : best)).id;
+  }, [recipes, recipeDetails, targets.daily_kcal, todayTotals.calories]);
+
+  const handleSaveProfile = (next) => {
+    saveProfile(next);
+    setProfileOpen(false);
+    showToast(t('toast.profileSaved'), 'success');
+  };
 
   const clearAll = () => {
     setIngredients([]);
@@ -227,90 +280,84 @@ function App() {
     setRecipeError('');
   };
 
-  const milestoneProgress = stats.nextMilestone
-    ? Math.min(100, (stats.explored / stats.nextMilestone) * 100)
-    : 100;
-  const displayedExplored = useCountUp(stats.explored);
-
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-title">
-            <h1>🍳 NutriChef AI</h1>
-            <p className="subtitle">Your Personal Recipe & Nutrition Assistant</p>
+    <LanguageContext.Provider value={i18n}>
+      <div className="app">
+        <header className="app-header">
+          <div className="header-content">
+            <div className="header-title">
+              <h1>🍳 NutriChef AI</h1>
+              <p className="subtitle">{t('app.subtitle')}</p>
+            </div>
+            <div className="header-widgets">
+              <TodaySummary todayTotals={todayTotals} targets={targets} onOpenProfile={() => setProfileOpen(true)} />
+              <button
+                className="icon-btn lang-toggle"
+                onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
+                aria-label={t('header.languageAria')}
+                lang={lang === 'he' ? 'en' : 'he'}
+              >
+                {t('header.language')}
+              </button>
+              <button
+                className="icon-btn theme-toggle"
+                onClick={toggleTheme}
+                aria-label={theme === 'light' ? t('header.toDark') : t('header.toLight')}
+                title={theme === 'light' ? t('header.toDark') : t('header.toLight')}
+              >
+                <span aria-hidden="true">{theme === 'light' ? '🌙' : '☀️'}</span>
+              </button>
+            </div>
           </div>
-          <div className="header-widgets">
-            {stats.streak > 0 && (
-              <div className="streak-badge" title={`${stats.streak} day streak — keep it going!`}>
-                🔥 {stats.streak} day{stats.streak > 1 ? 's' : ''}
-              </div>
-            )}
-            {stats.explored > 0 && stats.nextMilestone && (
-              <div className="milestone" title={`${stats.explored} recipes explored — next milestone at ${stats.nextMilestone}`}>
-                <span className="milestone-label">
-                  {displayedExplored}/{stats.nextMilestone} recipes
-                </span>
-                <div className="milestone-track">
-                  <div className="milestone-fill" style={{ width: `${milestoneProgress}%` }} />
+        </header>
+
+        {!online && (
+          <div className="offline-banner" role="status">
+            📡 {t('offline.banner')}
+            {pendingSync > 0 && t('offline.pending', { n: pendingSync })}
+          </div>
+        )}
+
+        <TabBar activeTab={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'kitchen' && (
+          <main className="main-content">
+            {!profile && !nudgeDismissed && (
+              <div className="goals-nudge">
+                <span>🎯 {t('nudge.text')}</span>
+                <div className="goals-nudge-actions">
+                  <button className="btn-link" onClick={() => setNudgeDismissed(true)}>
+                    {t('nudge.dismiss')}
+                  </button>
+                  <button className="btn-small" onClick={() => setProfileOpen(true)}>
+                    {t('nudge.cta')}
+                  </button>
                 </div>
               </div>
             )}
-            <button
-              className="theme-toggle"
-              onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-          </div>
-        </div>
-      </header>
 
-      {!online && (
-        <div className="offline-banner">
-          📡 You're offline — your ingredients, chat, and saved recipes still work. Changes sync when you're back.
-          {pendingSync > 0 && ` (${pendingSync} pending)`}
-        </div>
-      )}
+            {/* Primary path on the left (stacks first on mobile): ingredients → recipes. */}
+            <div className="left-panel">
+              <IngredientList
+                ingredients={ingredients}
+                removeIngredient={removeIngredient}
+                findRecipes={findRecipes}
+                clearAll={clearAll}
+                addIngredient={addIngredient}
+                isLoading={isLoadingRecipes}
+              />
 
-      <TabBar activeTab={activeTab} onChange={setActiveTab} />
+              {recipeError && (
+                <div className="error-banner" role="alert">
+                  {recipeError}
+                </div>
+              )}
 
-      {activeTab === 'kitchen' && (
-        <div className="main-content">
-          <div className="left-panel">
-            <ChatInterface
-              ingredients={ingredients}
-              conversationHistory={conversationHistory}
-              setConversationHistory={setConversationHistory}
-              onExtractedIngredients={addExtractedIngredients}
-              online={online}
-            />
-          </div>
-
-          <div className="right-panel">
-            <IngredientList
-              ingredients={ingredients}
-              removeIngredient={removeIngredient}
-              findRecipes={findRecipes}
-              clearAll={clearAll}
-              addIngredient={addIngredient}
-              isLoading={isLoadingRecipes}
-            />
-
-            {recipeError && <div className="error-banner">{recipeError}</div>}
-
-            {showRecipes && (
-              <>
-                {recipes.length > 0 && (
-                  <NutritionCompare recipes={recipes} detailsById={recipeDetails} loadingAll={loadingAll} />
-                )}
-
-                <div className="recipes-section">
+              {showRecipes && (
+                <section className="recipes-section" aria-labelledby="recipes-title" aria-busy={isLoadingRecipes}>
                   <div className="recipes-header">
-                    <h2>Recipe Suggestions</h2>
-                    {!isLoadingRecipes && <p className="recipes-count">{recipes.length} recipes found</p>}
+                    <h2 id="recipes-title">{t('recipes.title')}</h2>
+                    {!isLoadingRecipes && <p className="recipes-count">{t('recipes.count', { n: recipes.length })}</p>}
                   </div>
 
                   {isLoadingRecipes ? (
@@ -321,8 +368,8 @@ function App() {
                     </div>
                   ) : recipes.length === 0 ? (
                     <div className="no-recipes">
-                      <p>No recipes found with your current ingredients.</p>
-                      <p>Try adding more ingredients or removing some to see different options.</p>
+                      <p>{t('recipes.none')}</p>
+                      <p>{t('recipes.noneHint')}</p>
                     </div>
                   ) : (
                     <div className="recipes-grid">
@@ -332,35 +379,67 @@ function App() {
                           recipe={recipe}
                           index={i}
                           details={recipeDetails[recipe.id]}
+                          nutritionLoading={loadingAll}
                           loadDetails={loadRecipeDetails}
                           onViewed={handleViewed}
-                          onCooked={handleCooked}
+                          onAte={handleAte}
+                          bestFit={recipe.id === bestFitId}
                         />
                       ))}
                     </div>
                   )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                </section>
+              )}
 
-      {activeTab === 'trends' && (
-        <div className="tab-content">
-          <TrendsView entries={entries} theme={theme} online={online} />
-        </div>
-      )}
+              {showRecipes && recipes.length > 1 && (
+                <NutritionCompare recipes={recipes} detailsById={recipeDetails} loadingAll={loadingAll} />
+              )}
+            </div>
 
-      {activeTab === 'insights' && (
-        <div className="tab-content">
-          <InsightsPanel lastWeek={lastWeek} stats={stats} online={online} showToast={showToast} />
-          <AchievementsPanel achievements={stats.achievements} />
-        </div>
-      )}
+            <div className="right-panel">
+              <ChatInterface
+                ingredients={ingredients}
+                conversationHistory={conversationHistory}
+                setConversationHistory={setConversationHistory}
+                onAgentAction={handleAgentAction}
+                online={online}
+                profile={apiProfile}
+                todayTotals={todayTotals}
+              />
+            </div>
+          </main>
+        )}
 
-      <Toast toasts={toasts} />
-    </div>
+        {activeTab === 'trends' && (
+          <main className="tab-content">
+            <TrendsView entries={entries} theme={theme} online={online} />
+          </main>
+        )}
+
+        {activeTab === 'insights' && (
+          <main className="tab-content">
+            <ProgressSummary stats={stats} />
+            <InsightsPanel
+              lastWeek={lastWeek}
+              stats={stats}
+              online={online}
+              showToast={showToast}
+              profile={apiProfile}
+            />
+            <AchievementsPanel achievements={stats.achievements} />
+          </main>
+        )}
+
+        <ProfileSheet
+          open={profileOpen}
+          profile={profile}
+          onSave={handleSaveProfile}
+          onClose={() => setProfileOpen(false)}
+        />
+
+        <Toast toasts={toasts} />
+      </div>
+    </LanguageContext.Provider>
   );
 }
 

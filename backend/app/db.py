@@ -18,9 +18,20 @@ class Base(DeclarativeBase):
     pass
 
 
+# Columns added after a table first shipped. create_all() never alters an
+# existing table, so these are added in place on startup (idempotent).
+_ADDED_COLUMNS = [
+    ("activity_entries", "servings", "FLOAT"),
+]
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        for table, column, ddl_type in _ADDED_COLUMNS:
+            result = await conn.exec_driver_sql(f"PRAGMA table_info({table})")
+            if column not in {row[1] for row in result}:
+                await conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

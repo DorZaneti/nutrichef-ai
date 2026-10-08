@@ -4,17 +4,25 @@
 
 :root {
   /* brand */
-  --primary: #667eea;
+  /* #5a67d8 keeps white text on the gradient above 4.5:1 (WCAG AA) */
+  --primary: #5a67d8;
   --primary-2: #764ba2;
   --brand-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+  --primary-soft: #eef0ff;
+  --primary-strong: #4f46e5;
 
-  /* semantic */
+  /* semantic — *-strong is the text color on the matching *-soft background */
   --success: #10b981;
   --success-soft: #d1fae5;
+  --success-strong: #047857;
+  --success-solid: #047857;
+  --on-success: #ffffff;
   --warn: #f59e0b;
   --warn-soft: #fef3c7;
+  --warn-strong: #92400e;
   --danger: #ef4444;
   --danger-soft: #fef2f2;
+  --danger-strong: #b91c1c;
   --danger-border: #fecaca;
 
   /* surfaces & text */
@@ -25,7 +33,7 @@
   --surface-3: #eef0f7;
   --text-1: #1f2937;
   --text-2: #6b7280;
-  --text-3: #9ca3af;
+  --text-3: #6e7582;
   --text-on-primary: #ffffff;
   --border: #e5e7eb;
   --border-strong: #d1d5db;
@@ -56,13 +64,20 @@
   --primary: #818cf8;
   --primary-2: #a78bfa;
   --brand-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+  --primary-soft: rgba(129, 140, 248, 0.16);
+  --primary-strong: #a5b4fc;
 
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.16);
+  --success-strong: #6ee7b7;
+  --success-solid: #34d399;
+  --on-success: #062e22;
   --warn: #fbbf24;
   --warn-soft: rgba(251, 191, 36, 0.16);
+  --warn-strong: #fcd34d;
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.12);
+  --danger-strong: #fca5a5;
   --danger-border: rgba(248, 113, 113, 0.4);
 
   --page-bg: linear-gradient(135deg, #1e1b34 0%, #2a1a3f 100%);
@@ -72,7 +87,7 @@
   --surface-3: #303650;
   --text-1: #f3f4f6;
   --text-2: #b6bcc9;
-  --text-3: #8a91a3;
+  --text-3: #9aa1b2;
   --text-on-primary: #12131c;
   --border: #363c55;
   --border-strong: #4a5170;
@@ -109,4 +124,31 @@ body,
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- accessibility utilities ---------- */
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hidden visually, still read by screen readers (e.g. form labels). */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hebrew: Inter has no Hebrew glyphs, so fall back to the system Hebrew font. */
+:lang(he) body,
+html[lang='he'] body {
+  font-family: 'Inter', 'Segoe UI', 'Arial Hebrew', 'Noto Sans Hebrew', Arial, sans-serif;
 }

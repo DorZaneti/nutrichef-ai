@@ -41,24 +41,73 @@
   font-weight: 700;
   padding: 0.3rem 0.7rem;
   border-radius: 999px;
-  color: #fff;
 }
 
 .match-badge.match-high {
-  background: var(--success);
+  background: var(--success-soft);
+  color: var(--success-strong);
 }
 
 .match-badge.match-mid {
-  background: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn-strong);
 }
 
 .match-badge.match-low {
-  background: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-strong);
 }
 
-.likes-badge {
-  background: var(--surface-3);
+.best-fit-badge {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+/* ---------- per-serving nutrition on the card face ---------- */
+
+.card-nutrition {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 1rem;
+  min-height: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
+
+.card-nutrition strong {
+  font-size: 1.15rem;
   color: var(--text-1);
+}
+
+.card-per {
+  font-size: 0.8rem;
+}
+
+.card-calculating {
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.confidence-badge {
+  margin-inline-start: auto;
+  align-self: center;
+}
+
+.confidence-high {
+  background: var(--success-soft);
+  color: var(--success-strong);
+}
+
+.confidence-medium {
+  background: var(--warn-soft);
+  color: var(--warn-strong);
+}
+
+.confidence-low {
+  background: var(--surface-3);
+  color: var(--text-2);
 }
 
 .ingredients-section h4 {
@@ -79,6 +128,10 @@
   gap: 0.35rem;
 }
 
+.ingredients-tags {
+  list-style: none;
+}
+
 .ingredient-tag {
   font-size: 0.78rem;
   padding: 0.25rem 0.6rem;
@@ -88,7 +141,7 @@
 
 .ingredient-tag.required {
   background: var(--success-soft);
-  color: var(--success);
+  color: var(--success-strong);
   font-weight: 600;
 }
 
@@ -99,6 +152,7 @@
 
 .expand-btn {
   width: 100%;
+  min-height: 44px;
   margin-top: 1rem;
   padding: 0.6rem;
   border: 1px solid var(--border);
@@ -150,31 +204,67 @@
   border-top: 1px solid var(--border);
 }
 
-.recipe-meta {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
+/* Collapsed content stays out of the tab order and the accessibility tree. */
+.details-section:not(.expanded) .details-section-inner {
+  visibility: hidden;
 }
 
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
+/* ---------- "I ate this" ---------- */
+
+.ate-box {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.ate-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 0.6rem;
+}
+
+.ate-servings {
+  font-weight: 400;
   color: var(--text-2);
 }
 
+.portion-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.portion-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-1);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.portion-btn.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
 .cooked-btn {
-  margin-left: auto;
+  margin-inline-start: auto;
+  min-height: 44px;
   border: none;
   border-radius: 999px;
-  background: var(--success);
-  color: #fff;
+  background: var(--success-solid);
+  color: var(--on-success);
   font-weight: 600;
-  font-size: 0.82rem;
-  padding: 0.45rem 0.9rem;
+  font-size: 0.88rem;
+  padding: 0.45rem 1rem;
   cursor: pointer;
   transition: transform var(--speed) var(--ease), opacity var(--speed) var(--ease);
 }
@@ -190,6 +280,98 @@
 
 .nutrition-info {
   margin-bottom: 1.25rem;
+}
+
+.nutrition-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.nutrition-head h4 {
+  margin-bottom: 0;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.view-chip {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+}
+
+.view-chip.active {
+  border-color: var(--primary);
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+}
+
+.breakdown {
+  margin-top: 0.9rem;
+  font-size: 0.82rem;
+}
+
+.breakdown summary {
+  cursor: pointer;
+  color: var(--primary-strong);
+  font-weight: 600;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.breakdown-table td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-1);
+  text-align: start;
+}
+
+.breakdown-table td.num {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.source-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+}
+
+.source-usda {
+  background: var(--success-soft);
+  color: var(--success-strong);
+}
+
+.source-estimate {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.english-note {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  margin-bottom: 1rem;
 }
 
 .nutrition-info h4,
@@ -216,19 +398,19 @@
 .ingredient-list-ul li {
   font-size: 0.88rem;
   color: var(--text-1);
-  padding-left: 1.1rem;
+  padding-inline-start: 1.1rem;
   position: relative;
 }
 
 .ingredient-list-ul li::before {
   content: '•';
   position: absolute;
-  left: 0.25rem;
+  inset-inline-start: 0.25rem;
   color: var(--primary);
 }
 
 .instructions-list {
-  padding-left: 1.25rem;
+  padding-inline-start: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -245,7 +427,7 @@
 }
 
 .source-link a {
-  color: var(--primary);
+  color: var(--primary-strong);
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;

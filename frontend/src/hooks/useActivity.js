@@ -32,8 +32,10 @@ export default function useActivity() {
   const [seenAchievements, setSeenAchievements] = usePersistentState('nutrichef.seenAchievements', {});
   const { enqueue, pending } = useSyncQueue();
 
+  // `nutrition` is what was actually eaten (already scaled to `servings`).
+  // action 'cooked' means "ate it" — the name is kept for stored data.
   const recordActivity = useCallback(
-    (recipeName, action, nutrition = {}) => {
+    (recipeName, action, nutrition = {}, servings = null) => {
       const entry = {
         date: dayKey(new Date()),
         recipe_name: recipeName,
@@ -42,6 +44,7 @@ export default function useActivity() {
         protein: nutrition.protein ?? null,
         carbs: nutrition.carbs ?? null,
         fat: nutrition.fat ?? null,
+        servings,
       };
       setEntries((prev) => {
         const isDuplicate = prev.some((e) => naturalKey(e) === naturalKey(entry));
@@ -126,5 +129,24 @@ export default function useActivity() {
     return entries.filter((e) => e.date >= cutoffKey);
   }, [entries]);
 
-  return { entries, recordActivity, stats, lastWeek, pendingSync: pending, newlyEarned, markAchievementsSeen };
+  const todayTotals = useMemo(() => {
+    const today = dayKey(new Date());
+    return entries
+      .filter((e) => e.action === 'cooked' && e.date === today)
+      .reduce(
+        (sum, e) => ({ calories: sum.calories + (e.calories || 0), protein: sum.protein + (e.protein || 0) }),
+        { calories: 0, protein: 0 }
+      );
+  }, [entries]);
+
+  return {
+    entries,
+    recordActivity,
+    stats,
+    lastWeek,
+    todayTotals,
+    pendingSync: pending,
+    newlyEarned,
+    markAchievementsSeen,
+  };
 }

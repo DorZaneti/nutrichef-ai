@@ -10,6 +10,7 @@ from app.db import get_session
 from app.models import ActivityEntryRow, WeeklyInsight
 from app.schemas import ActivityEntry, InsightsRequest
 from app.services.ai import generate_weekly_insights
+from app.services.targets import daily_targets
 
 router = APIRouter()
 
@@ -33,6 +34,8 @@ async def weekly_insights(
                 request.activity,
                 request.streak_days,
                 request.recipes_explored,
+                daily_targets(request.profile),
+                request.profile.language if request.profile else "en",
             )
             return {"insights": insights}
 
@@ -68,7 +71,13 @@ async def weekly_insights(
             for row in result.scalars().all()
         ]
 
-        insights = await generate_weekly_insights(activity, request.streak_days, request.recipes_explored)
+        insights = await generate_weekly_insights(
+            activity,
+            request.streak_days,
+            request.recipes_explored,
+            daily_targets(request.profile),
+            request.profile.language if request.profile else "en",
+        )
 
         now = datetime.utcnow()
         stmt = (

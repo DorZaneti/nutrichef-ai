@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import { streamChat } from '../api/stream';
+import { useI18n } from '../i18n';
 import './ChatInterface.css';
 
 function renderContent(text) {
@@ -20,30 +21,52 @@ function renderContent(text) {
   });
 }
 
-function ChatInterface({ ingredients, conversationHistory, setConversationHistory, onExtractedIngredients, online }) {
+const QUICK_ACTIONS = ['chat.quickHighProtein', 'chat.quickQuick', 'chat.quickRemaining'];
+
+function ChatInterface({
+  ingredients,
+  conversationHistory,
+  setConversationHistory,
+  onAgentAction,
+  online,
+  profile,
+  todayTotals,
+}) {
+  const { t } = useI18n();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [streamingReply, setStreamingReply] = useState(null);
+  const [toolStatus, setToolStatus] = useState(null);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationHistory, isLoading, streamingReply]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [conversationHistory, isLoading, streamingReply, toolStatus]);
+
+  const requestBody = (userMessage) => ({
+    message: userMessage,
+    conversationHistory,
+    currentIngredients: ingredients,
+    profile,
+    todayTotals,
+  });
 
   const sendMessageFallback = async (userMessage, overrideText) => {
     try {
+      const body = requestBody(userMessage);
       const response = await api.post('/api/chat', {
-        message: userMessage,
-        conversation_history: conversationHistory,
-        current_ingredients: ingredients,
+        message: body.message,
+        conversation_history: body.conversationHistory,
+        current_ingredients: body.currentIngredients,
+        profile: body.profile,
+        today_totals: body.todayTotals,
       });
-
       setConversationHistory(response.data.conversation_history);
-      onExtractedIngredients(response.data.extracted_ingredients || []);
+      (response.data.actions || []).forEach(onAgentAction);
     } catch (err) {
       console.error('Error sending message:', err);
-      setError('Failed to send message. Please check if the backend is running.');
+      setError(t('chat.errorSend'));
       if (!overrideText) setMessage(userMessage);
     }
   };
@@ -55,20 +78,27 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
 
     setIsLoading(true);
     setError('');
+    setToolStatus(null);
     if (!overrideText) setMessage('');
     setStreamingReply('');
 
-    let gotDelta = false;
+    let gotEvent = false;
 
     await streamChat({
-      message: userMessage,
-      conversationHistory,
-      currentIngredients: ingredients,
+      ...requestBody(userMessage),
       onDelta: (text) => {
-        gotDelta = true;
+        gotEvent = true;
+        setToolStatus(null);
         setStreamingReply((prev) => (prev ?? '') + text);
       },
-      onIngredients: (extracted) => onExtractedIngredients(extracted),
+      onToolStatus: (tool) => {
+        gotEvent = true;
+        setToolStatus(tool);
+      },
+      onAction: (action) => {
+        gotEvent = true;
+        onAgentAction(action);
+      },
       onDone: (fullResponse) => {
         setConversationHistory((prev) => [
           ...prev,
@@ -76,13 +106,16 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
           { role: 'assistant', content: fullResponse },
         ]);
         setStreamingReply(null);
+        setToolStatus(null);
         setIsLoading(false);
       },
       onError: async (err) => {
         console.error('Chat stream failed:', err);
         setStreamingReply(null);
-        if (gotDelta) {
-          setError('Connection interrupted. Please try again.');
+        setToolStatus(null);
+        if (gotEvent) {
+          // Actions may already have been applied — don't replay the turn.
+          setError(t('chat.errorInterrupted'));
           setIsLoading(false);
         } else {
           await sendMessageFallback(userMessage, overrideText);
@@ -92,43 +125,30 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
     });
   };
 
-  const quickActions = [
-    'I have chicken breast 300g and rice 200g',
-    'What can I make with these ingredients?',
-    'Give me a healthy recipe',
-    'I want something quick and easy',
-  ];
-
   return (
-    <div className="chat-interface">
+    <section className="chat-interface" aria-labelledby="chat-title">
       <div className="chat-header">
-        <h2>💬 Chat with NutriChef AI</h2>
-        <p>Tell me what ingredients you have and I'll suggest recipes!</p>
+        <h2 id="chat-title">💬 {t('chat.title')}</h2>
+        <p>{t('chat.subtitle')}</p>
       </div>
 
-      <div className="chat-messages">
+      <div className="chat-messages" role="log" aria-live="polite" aria-busy={isLoading}>
         {conversationHistory.length === 0 ? (
           <div className="welcome-message">
-            <h3>👋 Welcome to NutriChef AI!</h3>
-            <p>I'm here to help you create delicious recipes based on your ingredients.</p>
-            <p><strong>How to use:</strong></p>
-            <ul>
-              <li>Tell me what ingredients you have and their weights (in grams)</li>
-              <li>I'll track them and find recipes automatically</li>
-              <li>Get detailed nutritional information for your meals</li>
-            </ul>
-            <p className="example">Example: "I have chicken breast 300g, rice 200g, and broccoli 150g"</p>
+            <h3>{t('chat.welcomeTitle')}</h3>
+            <p>{t('chat.welcomeBody')}</p>
+            <p className="example">{t('chat.example')}</p>
 
             <div className="quick-actions">
-              <p><strong>Quick actions:</strong></p>
-              {quickActions.map((action, index) => (
+              <p className="quick-actions-label">{t('chat.quickLabel')}</p>
+              {QUICK_ACTIONS.map((key) => (
                 <button
-                  key={index}
+                  key={key}
                   className="quick-action-btn"
-                  onClick={() => sendMessage(null, action)}
+                  onClick={() => sendMessage(null, t(key))}
                   disabled={isLoading || !online}
                 >
-                  {action}
+                  {t(key)}
                 </button>
               ))}
             </div>
@@ -137,11 +157,9 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
           conversationHistory.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
               <div className="message-header">
-                <span className="message-role">
-                  {msg.role === 'user' ? '👤 You' : '🤖 NutriChef AI'}
-                </span>
+                <span className="message-role">{msg.role === 'user' ? t('chat.you') : t('chat.assistant')}</span>
               </div>
-              <div className="message-content">
+              <div className="message-content" dir="auto">
                 {renderContent(msg.content)}
               </div>
             </div>
@@ -151,41 +169,51 @@ function ChatInterface({ ingredients, conversationHistory, setConversationHistor
         {isLoading && (
           <div className="message assistant">
             <div className="message-header">
-              <span className="message-role">🤖 NutriChef AI</span>
+              <span className="message-role">{t('chat.assistant')}</span>
             </div>
-            {streamingReply ? (
-              <div className="message-content">{renderContent(streamingReply)}</div>
-            ) : (
-              <div className="message-content loading">
-                <div className="typing-indicator">
+            <div className="message-content" dir="auto">
+              {streamingReply && renderContent(streamingReply)}
+              {toolStatus && <p className="tool-status">{t(`tool.${toolStatus}`)}</p>}
+              {!streamingReply && !toolStatus && (
+                <div className="typing-indicator" role="img" aria-label={t('chat.typing')}>
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
         <div ref={chatEndRef} />
       </div>
 
-      {error && <div className="chat-error">{error}</div>}
+      {error && (
+        <div className="chat-error" role="alert">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={sendMessage} className="chat-input-form">
+        <label htmlFor="chat-input" className="visually-hidden">
+          {t('chat.inputLabel')}
+        </label>
         <input
+          id="chat-input"
           type="text"
+          dir="auto"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder={online ? "Type your message… (e.g., 'I have chicken 300g and rice 200g')" : 'Chat needs a connection — you are offline'}
+          placeholder={online ? t('chat.placeholder') : t('chat.placeholderOffline')}
           disabled={isLoading || !online}
           className="chat-input"
+          autoComplete="off"
         />
         <button type="submit" disabled={isLoading || !online || !message.trim()} className="send-button">
-          {isLoading ? '…' : 'Send'}
+          {isLoading ? '…' : t('chat.send')}
         </button>
       </form>
-    </div>
+    </section>
   );
 }
 

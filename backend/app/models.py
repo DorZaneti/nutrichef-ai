@@ -30,6 +30,8 @@ class ActivityEntryRow(Base):
     protein: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     carbs: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     fat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Portions eaten; macros above are already scaled by it.
+    servings: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -50,3 +52,27 @@ class WeeklyInsight(Base):
     bottleneck: Mapped[str] = mapped_column(String)
     adjustment: Mapped[str] = mapped_column(String)
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class FoodNutrient(Base):
+    """USDA FoodData Central lookups, cached per query so restarts don't re-spend the rate limit."""
+
+    __tablename__ = "food_nutrients"
+
+    query: Mapped[str] = mapped_column(String, primary_key=True)
+    fdc_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Per 100g. All None when USDA had no match (a cached miss).
+    calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    protein: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    carbs: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    device_id: Mapped[str] = mapped_column(ForeignKey("devices.id"), primary_key=True)
+    data_json: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

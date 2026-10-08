@@ -47,9 +47,22 @@
   margin-bottom: 0.5rem;
 }
 
-.welcome-message ul {
-  margin: 0.5rem 0 0.5rem 1.25rem;
+.quick-actions-label {
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-2);
+}
+
+.tool-status {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-2);
+  margin-top: 0.25rem;
+}
+
+.tool-status::before {
+  content: '⏳ ';
+  font-style: normal;
 }
 
 .welcome-message .example {
@@ -67,7 +80,8 @@
 }
 
 .quick-action-btn {
-  text-align: left;
+  text-align: start;
+  min-height: 44px;
   padding: 0.6rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -80,8 +94,8 @@
 
 .quick-action-btn:hover:not(:disabled) {
   border-color: var(--primary);
-  color: var(--primary);
-  transform: translateX(3px);
+  color: var(--primary-strong);
+  transform: translateY(-1px);
 }
 
 .quick-action-btn:disabled {
@@ -109,7 +123,7 @@
 .message-role {
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--text-3);
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -125,13 +139,13 @@
 .message.user .message-content {
   background: var(--brand-gradient);
   color: var(--text-on-primary);
-  border-bottom-right-radius: 4px;
+  border-end-end-radius: 4px;
 }
 
 .message.assistant .message-content {
   background: var(--surface-2);
   color: var(--text-1);
-  border-bottom-left-radius: 4px;
+  border-end-start-radius: 4px;
 }
 
 .typing-indicator {
@@ -162,7 +176,7 @@
   background: var(--danger-soft);
   border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
-  color: var(--danger);
+  color: var(--danger-strong);
   font-size: 0.82rem;
 }
 
@@ -176,6 +190,8 @@
 
 .chat-input {
   flex: 1;
+  min-width: 0;
+  min-height: 44px;
   padding: 0.7rem 1rem;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -196,6 +212,7 @@
 }
 
 .send-button {
+  min-height: 44px;
   padding: 0.7rem 1.4rem;
   border: none;
   border-radius: 999px;

@@ -31,11 +31,12 @@ def streak_at_risk(entries: List[Dict]) -> Optional[Dict]:
             "title": f"{streak}-day streak at risk",
             "message": f"No activity logged today yet — cook or explore a recipe to keep your {streak}-day streak alive.",
             "cta": "Find a quick recipe",
+            "params": {"streak": streak},
         }
     return None
 
 
-def protein_low(entries: List[Dict]) -> Optional[Dict]:
+def protein_low(entries: List[Dict], protein_target: Optional[float] = None) -> Optional[Dict]:
     cutoff = (datetime.utcnow().date() - timedelta(days=7)).isoformat()
     cooked = [e for e in entries if e["action"] == "cooked" and e["date"] >= cutoff and e.get("calories") is not None]
 
@@ -52,14 +53,21 @@ def protein_low(entries: List[Dict]) -> Optional[Dict]:
     avg_calories = sum(d["calories"] for d in totals.values()) / len(totals)
     protein_share = (avg_protein * 4 / avg_calories) if avg_calories else 0  # protein: ~4 kcal/g
 
-    if avg_protein < 50 or protein_share < 0.15:
+    if protein_target:
+        low = avg_protein < 0.8 * protein_target
+    else:
+        low = avg_protein < 50 or protein_share < 0.15
+
+    if low:
+        target_note = f" Your target is {protein_target:.0f}g." if protein_target else ""
         return {
             "id": "protein_low",
             "type": "protein_low",
             "severity": "medium",
             "title": "Protein's been light this week",
-            "message": f"You're averaging about {avg_protein:.0f}g of protein per cooking day over the last {len(totals)} days.",
+            "message": f"You're averaging about {avg_protein:.0f}g of protein per logged day over the last {len(totals)} days.{target_note}",
             "cta": "Find a high-protein recipe",
+            "params": {"avg": round(avg_protein), "days": len(totals), "target": round(protein_target) if protein_target else None},
         }
     return None
 
@@ -80,6 +88,7 @@ def exploration_plateau(entries: List[Dict]) -> Optional[Dict]:
             "title": "Trying fewer new recipes lately",
             "message": f"You explored {len(recent)} recipes in the last 2 weeks, down from {len(prior)} the 2 weeks before that.",
             "cta": "Discover something new",
+            "params": {"recent": len(recent), "prior": len(prior)},
         }
     return None
 
@@ -98,6 +107,7 @@ def viewing_not_cooking(entries: List[Dict]) -> Optional[Dict]:
             "title": "Lots of browsing, no cooking",
             "message": f"You've viewed {viewed} recipes this week but haven't logged a single cook yet.",
             "cta": "Pick one and cook it",
+            "params": {"viewed": viewed},
         }
     return None
 
@@ -105,7 +115,11 @@ def viewing_not_cooking(entries: List[Dict]) -> Optional[Dict]:
 DETECTORS = [streak_at_risk, protein_low, exploration_plateau, viewing_not_cooking]
 
 
-def detect_patterns(entries: List[Dict]) -> List[Dict]:
-    suggestions = [s for s in (detector(entries) for detector in DETECTORS) if s is not None]
+def detect_patterns(entries: List[Dict], protein_target: Optional[float] = None) -> List[Dict]:
+    results = [
+        protein_low(entries, protein_target) if detector is protein_low else detector(entries)
+        for detector in DETECTORS
+    ]
+    suggestions = [s for s in results if s is not None]
     suggestions.sort(key=lambda s: SEVERITY_RANK.get(s["severity"], 99))
     return suggestions

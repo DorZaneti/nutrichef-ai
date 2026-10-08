@@ -8,8 +8,11 @@ export async function streamChat({
   message,
   conversationHistory,
   currentIngredients,
+  profile,
+  todayTotals,
   onDelta,
-  onIngredients,
+  onToolStatus,
+  onAction,
   onDone,
   onError,
 }) {
@@ -21,6 +24,8 @@ export async function streamChat({
         message,
         conversation_history: conversationHistory,
         current_ingredients: currentIngredients,
+        profile,
+        today_totals: todayTotals,
       }),
     });
 
@@ -52,7 +57,8 @@ export async function streamChat({
 
         const parsed = JSON.parse(data);
         if (eventName === 'delta') onDelta?.(parsed.text);
-        else if (eventName === 'ingredients') onIngredients?.(parsed.extracted_ingredients || []);
+        else if (eventName === 'tool_status') onToolStatus?.(parsed.tool);
+        else if (eventName === 'action') onAction?.(parsed);
         else if (eventName === 'done') onDone?.(parsed.response);
         else if (eventName === 'error') throw new Error(parsed.detail || 'Stream error');
       }

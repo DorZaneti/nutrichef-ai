@@ -92,7 +92,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-1);
-  text-align: right;
+  text-align: end;
   white-space: nowrap;
 }
 

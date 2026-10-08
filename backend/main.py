@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, ANTHROPIC_API_KEY
 from app.db import init_db
-from app.routers import chat, insights, recipes, sync, trends
+from app.routers import chat, insights, profile, recipes, sync, trends
 
 
 async def open_browser():
@@ -45,6 +45,7 @@ app.include_router(recipes.router)
 app.include_router(insights.router)
 app.include_router(sync.router)
 app.include_router(trends.router)
+app.include_router(profile.router)
 
 
 @app.get("/api/health")

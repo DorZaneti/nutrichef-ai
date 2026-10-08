@@ -25,6 +25,7 @@
 }
 
 .achievements-timeline {
+  list-style: none;
   position: relative;
   display: flex;
   gap: 1.5rem;
@@ -36,8 +37,7 @@
   content: '';
   position: absolute;
   top: 32px;
-  left: 0.25rem;
-  right: 0.25rem;
+  inset-inline: 0.25rem;
   height: 2px;
   background: var(--border);
   z-index: 0;

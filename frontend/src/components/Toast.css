@@ -1,7 +1,7 @@
 .toast-stack {
   position: fixed;
   bottom: 1.5rem;
-  right: 1.5rem;
+  inset-inline-end: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -23,15 +23,15 @@
 }
 
 .toast-success {
-  border-left: 4px solid var(--success);
+  border-inline-start: 4px solid var(--success);
 }
 
 .toast-info {
-  border-left: 4px solid var(--primary);
+  border-inline-start: 4px solid var(--primary);
 }
 
 .toast-error {
-  border-left: 4px solid var(--danger);
+  border-inline-start: 4px solid var(--danger);
 }
 
 @keyframes toast-in {

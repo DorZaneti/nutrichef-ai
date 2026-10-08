@@ -14,28 +14,30 @@ import {
 } from 'recharts';
 import api from '../api/client';
 import useChartColors from '../hooks/useChartColors';
+import { locale, useI18n } from '../i18n';
 import './TrendsView.css';
 
 const SERIES = [
-  { key: 'calories', label: 'Calories', color: 'chart-calories', unit: 'kcal' },
-  { key: 'protein', label: 'Protein', color: 'chart-protein', unit: 'g' },
-  { key: 'carbs', label: 'Carbs', color: 'chart-carbs', unit: 'g' },
-  { key: 'fat', label: 'Fat', color: 'chart-fat', unit: 'g' },
+  { key: 'calories', color: 'chart-calories', unit: 'kcal' },
+  { key: 'protein', color: 'chart-protein', unit: 'g' },
+  { key: 'carbs', color: 'chart-carbs', unit: 'g' },
+  { key: 'fat', color: 'chart-fat', unit: 'g' },
 ];
 
 const RANGES = [
-  { id: '7d', label: '7D', days: 7 },
-  { id: '30d', label: '30D', days: 30 },
-  { id: '90d', label: '90D', days: 90 },
-  { id: 'all', label: 'All', days: null },
+  { id: '7d', days: 7 },
+  { id: '30d', days: 30 },
+  { id: '90d', days: 90 },
+  { id: 'all', days: null },
 ];
 
-function formatDateLabel(dateStr) {
+function formatDateLabel(dateStr, lang) {
   const d = new Date(`${dateStr}T00:00:00`);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(locale(lang), { month: 'short', day: 'numeric' });
 }
 
 function CustomTooltip({ active, payload, label, colors }) {
+  const { t, lang } = useI18n();
   if (!active || !payload) return null;
   const visible = payload.filter((entry) => entry.value != null);
   if (visible.length === 0) return null;
@@ -44,14 +46,14 @@ function CustomTooltip({ active, payload, label, colors }) {
       className="trends-tooltip"
       style={{ background: colors.surface, borderColor: colors.border, color: colors['text-1'] }}
     >
-      <p className="trends-tooltip-date">{formatDateLabel(label)}</p>
+      <p className="trends-tooltip-date">{formatDateLabel(label, lang)}</p>
       {visible.map((entry) => {
         const isCalorieSeries = entry.dataKey === 'calories' || entry.dataKey === 'calories_projected';
         return (
           <p key={entry.dataKey} className="trends-tooltip-row" style={{ color: entry.color }}>
             <span>{entry.name}</span>
             <strong>
-              {Math.round(entry.value)} {isCalorieSeries ? 'kcal' : 'g'}
+              {Math.round(entry.value)} {isCalorieSeries ? t('unit.kcal') : t('unit.g')}
             </strong>
           </p>
         );
@@ -66,6 +68,8 @@ function CustomTooltip({ active, payload, label, colors }) {
 // count toward nutrition — viewing a recipe shouldn't inflate the trend for
 // something never actually eaten.
 function TrendsView({ entries, theme, online }) {
+  const { t, lang } = useI18n();
+  const dateLabel = (d) => formatDateLabel(d, lang);
   const colors = useChartColors(theme);
   const [range, setRange] = useState('30d');
   const [hidden, setHidden] = useState(() => new Set());
@@ -153,8 +157,8 @@ function TrendsView({ entries, theme, online }) {
   if (dailyData.length === 0) {
     return (
       <div className="trends-view">
-        <h2>📈 Nutrition Trends</h2>
-        <p className="trends-hint">Cook a few recipes and your nutrition trends will show up here.</p>
+        <h2>📈 {t('trends.title')}</h2>
+        <p className="trends-hint">{t('trends.empty')}</p>
       </div>
     );
   }
@@ -162,17 +166,16 @@ function TrendsView({ entries, theme, online }) {
   return (
     <div className="trends-view">
       <div className="trends-header">
-        <h2>📈 Nutrition Trends</h2>
-        <div className="range-toggle" role="tablist" aria-label="Date range">
+        <h2>📈 {t('trends.title')}</h2>
+        <div className="range-toggle" role="group" aria-label={t('trends.range')}>
           {RANGES.map((r) => (
             <button
               key={r.id}
-              role="tab"
-              aria-selected={range === r.id}
+              aria-pressed={range === r.id}
               className={`range-chip ${range === r.id ? 'active' : ''}`}
               onClick={() => setRange(r.id)}
             >
-              {r.label}
+              {t(`trends.range.${r.id}`)}
             </button>
           ))}
         </div>
@@ -185,20 +188,23 @@ function TrendsView({ entries, theme, online }) {
             className={`legend-chip ${hidden.has(s.key) ? 'off' : ''}`}
             style={{ '--chip-color': colors[s.color] }}
             onClick={() => toggleSeries(s.key)}
+            aria-pressed={!hidden.has(s.key)}
           >
-            <span className="legend-dot" />
-            {s.label}
+            <span className="legend-dot" aria-hidden="true" />
+            {t(`macro.${s.key}`)}
           </button>
         ))}
       </div>
 
       {filteredData.length === 0 ? (
-        <p className="trends-hint">No cooked recipes in this range yet — try a wider range.</p>
+        <p className="trends-hint">{t('trends.emptyRange')}</p>
       ) : (
+        // Charts read left-to-right (time axis) in both languages.
+        <div dir="ltr">
         <ResponsiveContainer width="100%" height={360}>
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-            <XAxis dataKey="date" tickFormatter={formatDateLabel} stroke={colors['text-3']} tick={{ fontSize: 12 }} />
+            <XAxis dataKey="date" tickFormatter={dateLabel} stroke={colors['text-3']} tick={{ fontSize: 12 }} />
             <YAxis yAxisId="left" stroke={colors['text-3']} tick={{ fontSize: 12 }} width={50} />
             <YAxis yAxisId="right" orientation="right" stroke={colors['text-3']} tick={{ fontSize: 12 }} width={40} />
             <Tooltip content={<CustomTooltip colors={colors} />} />
@@ -209,13 +215,13 @@ function TrendsView({ entries, theme, online }) {
                 yAxisId="left"
                 stroke={colors['text-3']}
                 strokeDasharray="3 3"
-                label={{ value: 'Today', position: 'insideTopLeft', fill: colors['text-3'], fontSize: 11 }}
+                label={{ value: t('trends.today'), position: 'insideTopLeft', fill: colors['text-3'], fontSize: 11 }}
               />
             )}
             <Area
               yAxisId="left"
               dataKey="calories"
-              name="Calories"
+              name={t('macro.calories')}
               hide={hidden.has('calories')}
               stroke={colors['chart-calories']}
               fill={colors['chart-calories']}
@@ -227,7 +233,7 @@ function TrendsView({ entries, theme, online }) {
               <Line
                 yAxisId="left"
                 dataKey="calories_projected"
-                name="Projected"
+                name={t('trends.projected')}
                 hide={hidden.has('calories')}
                 stroke={colors['chart-calories']}
                 strokeDasharray="5 5"
@@ -239,7 +245,7 @@ function TrendsView({ entries, theme, online }) {
             <Line
               yAxisId="right"
               dataKey="protein"
-              name="Protein"
+              name={t('macro.protein')}
               hide={hidden.has('protein')}
               stroke={colors['chart-protein']}
               strokeWidth={2}
@@ -248,7 +254,7 @@ function TrendsView({ entries, theme, online }) {
             <Line
               yAxisId="right"
               dataKey="carbs"
-              name="Carbs"
+              name={t('macro.carbs')}
               hide={hidden.has('carbs')}
               stroke={colors['chart-carbs']}
               strokeWidth={2}
@@ -257,15 +263,16 @@ function TrendsView({ entries, theme, online }) {
             <Line
               yAxisId="right"
               dataKey="fat"
-              name="Fat"
+              name={t('macro.fat')}
               hide={hidden.has('fat')}
               stroke={colors['chart-fat']}
               strokeWidth={2}
               dot={false}
             />
-            <Brush dataKey="date" height={24} stroke={colors.primary} tickFormatter={formatDateLabel} travellerWidth={8} />
+            <Brush dataKey="date" height={24} stroke={colors.primary} tickFormatter={dateLabel} travellerWidth={8} />
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   );

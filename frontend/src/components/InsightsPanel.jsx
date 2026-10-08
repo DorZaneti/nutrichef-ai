@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import usePersistentState from '../hooks/usePersistentState';
+import { locale, useI18n } from '../i18n';
 import './InsightsPanel.css';
 import SuggestionCards from './SuggestionCards';
 
 const BULLETS = [
-  { key: 'went_well', icon: '✅', title: 'What went well' },
-  { key: 'bottleneck', icon: '🚧', title: 'The bottleneck' },
-  { key: 'adjustment', icon: '🎯', title: 'Best adjustment for next week' },
+  { key: 'went_well', icon: '✅' },
+  { key: 'bottleneck', icon: '🚧' },
+  { key: 'adjustment', icon: '🎯' },
 ];
 
 // Monday of the ISO week containing `date`, as YYYY-MM-DD — matches the
@@ -20,7 +21,8 @@ function isoWeekStart(date) {
 }
 
 // AI-generated 3-bullet weekly summary of the user's local activity log.
-function InsightsPanel({ lastWeek, stats, online, showToast }) {
+function InsightsPanel({ lastWeek, stats, online, showToast, profile }) {
+  const { t, lang } = useI18n();
   const [cached, setCached] = usePersistentState('nutrichef.insights', null);
   const [loading, setLoading] = useState(false);
 
@@ -31,6 +33,7 @@ function InsightsPanel({ lastWeek, stats, online, showToast }) {
         activity: lastWeek,
         streak_days: stats.streak,
         recipes_explored: stats.explored,
+        profile,
       });
       setCached({
         insights: response.data.insights,
@@ -38,7 +41,7 @@ function InsightsPanel({ lastWeek, stats, online, showToast }) {
       });
     } catch (error) {
       console.error('Error generating insights:', error);
-      showToast('Could not generate insights. Is the backend running?', 'error');
+      showToast(t('insights.error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -58,43 +61,45 @@ function InsightsPanel({ lastWeek, stats, online, showToast }) {
   }, []);
 
   return (
-    <div className="insights-panel">
+    <section className="insights-panel" aria-labelledby="insights-title">
       <SuggestionCards online={online} showToast={showToast} />
 
       <div className="insights-header">
-        <h3>📈 Weekly Insights</h3>
+        <h3 id="insights-title">📈 {t('insights.title')}</h3>
         <button className="insights-btn" onClick={generate} disabled={loading || !online}>
-          {loading ? 'Analyzing your week…' : cached ? 'Refresh' : 'Generate'}
+          {loading ? t('insights.loading') : cached ? t('insights.refresh') : t('insights.generate')}
         </button>
       </div>
 
-      {!online && <p className="insights-hint">You're offline — insights will be available when you reconnect.</p>}
+      {!online && <p className="insights-hint">{t('insights.offline')}</p>}
 
       {cached ? (
         <>
           <div className="insights-bullets">
             {BULLETS.map((b) => (
               <div key={b.key} className="insight-bullet">
-                <span className="insight-icon">{b.icon}</span>
+                <span className="insight-icon" aria-hidden="true">
+                  {b.icon}
+                </span>
                 <div>
-                  <p className="insight-title">{b.title}</p>
-                  <p className="insight-text">{cached.insights[b.key]}</p>
+                  <p className="insight-title">{t(`insights.${b.key}`)}</p>
+                  <p className="insight-text" dir="auto">
+                    {cached.insights[b.key]}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
           <p className="insights-timestamp">
-            Generated {new Date(cached.generatedAt).toLocaleString()}
+            {t('insights.generated', { date: new Date(cached.generatedAt).toLocaleString(locale(lang)) })}
           </p>
         </>
       ) : (
         !loading && (
-          <p className="insights-hint">
-            Explore and cook recipes during the week, then generate a 3-bullet AI summary of how it went.
-          </p>
+          <p className="insights-hint">{t('insights.empty')}</p>
         )
       )}
-    </div>
+    </section>
   );
 }
 

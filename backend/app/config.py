@@ -14,9 +14,22 @@ client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
 THEMEALDB_BASE = "https://www.themealdb.com/api/json/v1/1"
 
-CHAT_MODEL = "claude-sonnet-4-6"
-FAST_MODEL = "claude-haiku-4-5"
-INSIGHTS_MODEL = "claude-opus-4-8"
+# USDA FoodData Central — free key from https://api.data.gov/signup/.
+# DEMO_KEY works but is limited to ~30 requests/hour per IP.
+USDA_API_KEY = os.getenv("USDA_API_KEY", "DEMO_KEY")
+USDA_BASE = "https://api.nal.usda.gov/fdc/v1"
+
+CHAT_MODEL = "claude-sonnet-5-5"
+FAST_MODEL = "claude-haiku-5-5"
+INSIGHTS_MODEL = "claude-opus-5-5"
+
+# Server-side refusal fallback (Claude API only): if the model declines on a
+# safety policy, the API reruns the same request on a fallback model it picks
+# by refusal category. Not available for Haiku.
+REFUSAL_FALLBACK = {
+    "extra_headers": {"anthropic-beta": "server-side-fallback-2026-07-01"},
+    "extra_body": {"fallbacks": "default"},
+}
 
 ALLOWED_ORIGINS = [f"http://localhost:{port}" for port in (3000, 3001, 3002, 3003, 3004, 3005, 5173)]
 

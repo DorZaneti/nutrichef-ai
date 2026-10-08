@@ -62,7 +62,7 @@ body {
 
 .streak-badge {
   background: var(--warn-soft);
-  color: var(--warn);
+  color: var(--warn-strong);
   font-weight: 700;
   font-size: 0.9rem;
   padding: 0.45rem 0.85rem;
@@ -82,7 +82,7 @@ body {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-2);
-  text-align: right;
+  text-align: end;
 }
 
 .milestone-track {
@@ -99,29 +99,112 @@ body {
   transition: width 0.5s var(--ease);
 }
 
-.theme-toggle {
+.icon-btn {
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 1.15rem;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  color: var(--text-1);
+  font: inherit;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 999px;
   cursor: pointer;
   display: grid;
   place-items: center;
   transition: transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
 }
 
+.icon-btn:hover {
+  box-shadow: var(--shadow-2);
+}
+
+.theme-toggle {
+  font-size: 1.15rem;
+}
+
 .theme-toggle:hover {
   transform: rotate(15deg) scale(1.08);
+}
+
+.lang-toggle {
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ---------- progress (streak + milestone, Progress tab) ---------- */
+
+.progress-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.progress-summary .milestone {
+  flex: 1;
+  min-width: 180px;
+}
+
+.progress-summary .milestone-label {
+  text-align: start;
+  font-size: 0.82rem;
+}
+
+/* ---------- goals nudge ---------- */
+
+.goals-nudge {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--text-1);
+  font-size: 0.92rem;
+}
+
+.goals-nudge-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-small,
+.btn-link {
+  min-height: 40px;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-small {
+  border: none;
+  background: var(--brand-gradient);
+  color: var(--text-on-primary);
+}
+
+.btn-link {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
 }
 
 /* ---------- offline ---------- */
 
 .offline-banner {
   background: var(--warn-soft);
-  color: var(--warn);
+  color: var(--warn-strong);
   font-size: 0.88rem;
   font-weight: 600;
   text-align: center;
@@ -134,7 +217,8 @@ body {
 .main-content {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
   gap: 2rem;
   max-width: 1400px;
   width: 100%;
@@ -233,6 +317,15 @@ body {
   }
 }
 
+/* Chat stays in view while scrolling through recipes. */
+@media (min-width: 1025px) {
+  .right-panel {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+  }
+}
+
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
@@ -248,7 +341,25 @@ body {
     font-size: 0.9rem;
   }
 
-  .main-content {
+  .app-header {
+    padding: 1rem;
+  }
+
+  .main-content,
+  .tab-content {
     padding: 0 1rem;
+    margin: 1.25rem auto;
+  }
+
+  .recipes-section {
+    padding: 1.25rem;
+  }
+
+  .header-widgets {
+    width: 100%;
+  }
+
+  .header-widgets .today-summary {
+    margin-inline-end: auto;
   }
 }

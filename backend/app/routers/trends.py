@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.cache import TTLCache
 from app.db import get_device_id, get_session
 from app.models import ActivityEntryRow
+from app.models import Profile as ProfileRow
+from app.schemas import Profile
 from app.services.analytics import daily_aggregates, linear_projection, moving_average
 from app.services.patterns import detect_patterns
+from app.services.targets import daily_targets
 
 router = APIRouter()
 
@@ -74,6 +77,9 @@ async def get_suggestions(
         for row in result.scalars().all()
     ]
 
-    suggestions = detect_patterns(entries)[:2]
+    profile_row = await session.get(ProfileRow, device_id)
+    targets = daily_targets(Profile(**profile_row.data_json) if profile_row else None)
+
+    suggestions = detect_patterns(entries, targets["daily_protein_g"])[:2]
     suggestions_cache.set(device_id, suggestions)
     return {"suggestions": suggestions}
