@@ -1,4 +1,4 @@
-from app.services.nutrition import aggregate, confidence_for, parse_usda_food
+from app.services.nutrition import MIN_MATCH_SCORE, aggregate, confidence_for, match_score, parse_usda_food
 
 CHICKEN_SEARCH_HIT = {
     "fdcId": 2646170,
@@ -72,3 +72,11 @@ def test_confidence_thresholds():
     assert confidence_for(0.84) == "medium"
     assert confidence_for(0.60) == "medium"
     assert confidence_for(0.59) == "low"
+
+
+def test_match_score_rejects_unrelated_usda_hits():
+    query = "vegetables mixed stir-fry"
+    assert match_score(query, "Vegetables, mixed, frozen, unprepared") > match_score(query, "Salsify, (vegetable oyster), raw")
+    assert match_score("chicken breast raw", "Chicken, breast, boneless, skinless, raw") >= 1.5
+    assert match_score("soy sauce", "Soy sauce made from soy (tamari)") >= 1.5
+    assert match_score("cornstarch", "Salsify, (vegetable oyster), raw") < MIN_MATCH_SCORE

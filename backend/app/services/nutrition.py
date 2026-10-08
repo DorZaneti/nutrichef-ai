@@ -1,6 +1,7 @@
 import asyncio
 import json
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Set
 
 import httpx
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -26,6 +27,11 @@ CONFIDENCE_MEDIUM = 0.60
 
 # USDA's search ranks these badly ("water" → "Water convolvulus") and they're 0 kcal anyway.
 ZERO_CALORIE_QUERIES = {"water", "ice", "tap water", "cold water", "boiling water", "ice cubes"}
+
+# Below this, a USDA result is treated as no match and the Claude estimate is used.
+MIN_MATCH_SCORE = 0.5
+# Bump when matching changes so previously cached (possibly wrong) matches are ignored.
+_CACHE_VERSION = "v2"
 
 # Stay well under the USDA rate limit when a recipe fans out to ~20 lookups.
 _usda_semaphore = asyncio.Semaphore(4)
@@ -118,6 +124,34 @@ def parse_usda_food(food: Dict) -> Optional[Dict]:
     return result
 
 
+def _words(text: str) -> Set[str]:
+    words = set()
+    for w in re.findall(r"[a-z]+", text.lower()):
+        if len(w) > 3 and w.endswith("ies"):
+            w = w[:-3] + "y"
+        elif len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+            w = w[:-1]
+        words.add(w)
+    return words
+
+
+def match_score(query: str, description: str) -> float:
+    """How well a USDA description fits the search term.
+
+    USDA's own ranking can put an unrelated food first ("stir-fry vegetables"
+    → "Salsify (vegetable oyster)"), so we score the overlap ourselves: the
+    share of query words found in the description, plus a bonus when the
+    description's lead word (USDA's main food name) is one of them.
+    """
+    query_words = _words(query)
+    desc = _words(description)
+    if not query_words or not desc:
+        return 0.0
+    overlap = len(query_words & desc) / len(query_words)
+    lead = _words(description.split(",")[0])
+    return overlap + (0.5 if lead & query_words else 0.0)
+
+
 async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
     async with _usda_semaphore:
         r = await http.get(
@@ -125,16 +159,20 @@ async def _fetch_usda(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
             params={
                 "query": query,
                 "dataType": "Foundation,SR Legacy",
-                "pageSize": 3,
+                "pageSize": 10,
                 "api_key": USDA_API_KEY,
             },
         )
     r.raise_for_status()
+    best, best_score = None, MIN_MATCH_SCORE
     for food in r.json().get("foods", []):
         per_100g = parse_usda_food(food)
-        if per_100g is not None:
-            return {"fdc_id": food.get("fdcId"), "description": food.get("description"), **per_100g}
-    return None
+        if per_100g is None:
+            continue
+        score = match_score(query, food.get("description") or "")
+        if score > best_score:  # strict: ties keep USDA's earlier-ranked result
+            best, best_score = {"fdc_id": food.get("fdcId"), "description": food.get("description"), **per_100g}, score
+    return best
 
 
 async def lookup_food(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
@@ -143,9 +181,10 @@ async def lookup_food(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
     Returns None when USDA has no match. Raises on transient failures (rate
     limit, outage) so callers don't mistake them for a real miss.
     """
-    key = query.strip().lower()
-    if key in ZERO_CALORIE_QUERIES:
+    query = query.strip().lower()
+    if query in ZERO_CALORIE_QUERIES:
         return {"fdc_id": None, "description": "Water", **{m: 0.0 for m in MACROS}}
+    key = f"{_CACHE_VERSION}:{query}"
     cached = food_cache.get(key)
     if cached is not None:
         return cached or None  # {} is a cached miss
@@ -161,7 +200,7 @@ async def lookup_food(http: httpx.AsyncClient, query: str) -> Optional[Dict]:
             food_cache.set(key, hit)
             return hit or None
 
-        hit = await _fetch_usda(http, key)
+        hit = await _fetch_usda(http, query)
 
         # Two lookups of the same term can race here; the second insert is a no-op.
         await session.execute(
