@@ -16,7 +16,7 @@ THEMEALDB_BASE = "https://www.themealdb.com/api/json/v1/1"
 
 # USDA FoodData Central — free key from https://api.data.gov/signup/.
 # DEMO_KEY works but is limited to ~30 requests/hour per IP.
-USDA_API_KEY = os.getenv("USDA_API_KEY", "DEMO_KEY")
+USDA_API_KEY = os.getenv("USDA_API_KEY", "").strip().strip("'\"") or "DEMO_KEY"
 USDA_BASE = "https://api.nal.usda.gov/fdc/v1"
 
 CHAT_MODEL = "claude-sonnet-5-5"

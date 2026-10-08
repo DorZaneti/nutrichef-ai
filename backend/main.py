@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, ANTHROPIC_API_KEY
+from app.config import ALLOWED_ORIGIN_REGEX, ALLOWED_ORIGINS, ANTHROPIC_API_KEY, USDA_API_KEY
 from app.db import init_db
 from app.routers import chat, insights, profile, recipes, sync, trends
 
@@ -53,6 +53,8 @@ def health_check():
     return {
         "status": "healthy",
         "anthropic_configured": bool(ANTHROPIC_API_KEY),
+        # False means the shared, heavily rate-limited DEMO_KEY is in use.
+        "usda_key_configured": USDA_API_KEY != "DEMO_KEY",
     }
 
 
